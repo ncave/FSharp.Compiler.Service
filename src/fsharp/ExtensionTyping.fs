@@ -274,7 +274,7 @@ module internal ExtensionTyping =
         member ctxt.GetDictionaries()  = 
             match ctxt with
             | NoEntries -> 
-                Dictionary<System.Type,ILTypeRef>(providedSystemTypeComparer), Dictionary<System.Type,obj>(providedSystemTypeComparer)
+                Dictionary<System.Type,ILTypeRef>(3, providedSystemTypeComparer), Dictionary<System.Type,obj>(3, providedSystemTypeComparer)
             | Entries (lookupILTR, lookupILTCR) ->
                 lookupILTR, lookupILTCR.Force()
 
@@ -282,22 +282,22 @@ module internal ExtensionTyping =
             match ctxt with 
             | NoEntries -> None 
             | Entries(d,_) -> 
-                let mutable res = Unchecked.defaultof<_>
-                if d.TryGetValue(st,&res) then Some res else None
+                let ok, res = d.TryGetValue(st)
+                if ok then Some res else None
 
         member ctxt.TryGetTyconRef(st) = 
             match ctxt with 
             | NoEntries -> None 
             | Entries(_,d) -> 
                 let d = d.Force()
-                let mutable res = Unchecked.defaultof<_>
-                if d.TryGetValue(st,&res) then Some res else None
+                let ok, res = d.TryGetValue(st)
+                if ok then Some res else None
 
         member ctxt.RemapTyconRefs (f:obj->obj) = 
             match ctxt with 
             | NoEntries -> NoEntries
             | Entries(d1,d2) ->
-                Entries(d1, lazy (let dict = new Dictionary<System.Type,obj>(providedSystemTypeComparer)
+                Entries(d1, lazy (let dict = new Dictionary<System.Type,obj>(3, providedSystemTypeComparer)
                                   for KeyValue (st, tcref) in d2.Force() do dict.Add(st, f tcref)
                                   dict))
 

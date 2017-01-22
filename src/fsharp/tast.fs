@@ -26,6 +26,9 @@ open Microsoft.FSharp.Compiler.PrettyNaming
 open Microsoft.FSharp.Compiler.QuotationPickler
 open Microsoft.FSharp.Core.Printf
 open Microsoft.FSharp.Compiler.Rational
+#if FABLE_COMPILER
+open Microsoft.FSharp.Core.Operators
+#endif
 
 #if EXTENSIONTYPING
 open Microsoft.FSharp.Compiler.ExtensionTyping
@@ -35,12 +38,20 @@ open Microsoft.FSharp.Core.CompilerServices
 /// Unique name generator for stamps attached to lambdas and object expressions
 type Unique = int64
 //++GLOBAL MUTABLE STATE
+#if FABLE_COMPILER
+let newUnique = let i = ref 0L in fun () -> i := !i + 1L; !i
+#else
 let newUnique = let i = ref 0L in fun () -> System.Threading.Interlocked.Increment(i)
-type Stamp = int64
+#endif
 
 /// Unique name generator for stamps attached to to val_specs, tycon_specs etc.
+type Stamp = int64
 //++GLOBAL MUTABLE STATE
+#if FABLE_COMPILER
+let newStamp = let i = ref 0L in fun () -> i := !i + 1L; !i
+#else
 let newStamp = let i = ref 0L in fun () -> System.Threading.Interlocked.Increment(i)
+#endif
 
 /// A global generator of compiler generated names
 // ++GLOBAL MUTABLE STATE
@@ -386,7 +397,7 @@ type EntityFlags(flags:int64) =
     member x.PickledBits =                         (flags       &&&  ~~~0b00000000100L)
 
 
-#if DEBUG
+#if DEBUG && !FABLE_COMPILER
 assert (sizeof<ValFlags> = 8)
 assert (sizeof<EntityFlags> = 8)
 assert (sizeof<TyparFlags> = 4)
@@ -522,7 +533,7 @@ type Entity =
 
     /// The code location where the module, namespace or type is defined.
     member x.Range = 
-#if EXTENSIONTYPING    
+#if EXTENSIONTYPING
         match x.TypeReprInfo with
         | TProvidedTypeExtensionPoint info ->
             match definitionLocationOfProvidedItem info.ProvidedType with
@@ -900,7 +911,7 @@ type Entity =
           match x.GeneratedHashAndEqualsWithComparerValues with
           | None -> ()
           | Some (v1,v2,v3) -> yield v1; yield v2; yield v3 ]
-    
+
 
     /// Gets the data indicating the compiled representation of a type or module in terms of Abstract IL data structures.
     member x.CompiledRepresentation =
@@ -3795,7 +3806,7 @@ and
     //
     // Indicates the expression is a quoted expression tree. 
     | Quote of Expr * (ILTypeRef list * TTypes * Exprs * ExprData) option ref * bool * range * TType  
-    
+
     /// Typechecking residue: Indicates a free choice of typars that arises due to 
     /// minimization of polymorphism at let-rec bindings.  These are 
     /// resolved to a concrete instantiation on subsequent rewrites. 

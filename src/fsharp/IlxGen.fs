@@ -1079,7 +1079,7 @@ let AddPropertyDefToHash (m:range) (ht:Dictionary<PropKey,(int * ILPropertyDef)>
 
 /// Merge a whole group of properties all at once 
 let MergePropertyDefs m ilPropertyDefs = 
-    let ht = new Dictionary<_,_>(3,HashIdentity.Structural)
+    let ht = new Dictionary<_,_>(3, HashIdentity.Structural)
     ilPropertyDefs |> List.iter (AddPropertyDefToHash m ht)  
     HashRangeSorted ht
 
@@ -1091,7 +1091,7 @@ let MergePropertyDefs m ilPropertyDefs =
 type TypeDefBuilder(tdef, tdefDiscards) = 
     let gmethods   = new ResizeArray<ILMethodDef>(0)
     let gfields    = new ResizeArray<ILFieldDef>(0)
-    let gproperties : Dictionary<PropKey,(int * ILPropertyDef)> = new Dictionary<_,_>(3,HashIdentity.Structural)
+    let gproperties : Dictionary<PropKey,(int * ILPropertyDef)> = new Dictionary<_,_>(3, HashIdentity.Structural)
     let gevents    = new ResizeArray<ILEventDef>(0)
     let gnested    = new TypeDefsBuilder()
     
@@ -1171,7 +1171,7 @@ type AssemblyBuilder(cenv:cenv) as mgbuf =
     // The Abstract IL table of types 
     let gtdefs= new TypeDefsBuilder() 
     // The definitions of top level values, as quotations. 
-    let mutable reflectedDefinitions : System.Collections.Generic.Dictionary<Tast.Val,(string * int * Expr)> = System.Collections.Generic.Dictionary(HashIdentity.Reference)
+    let mutable reflectedDefinitions : System.Collections.Generic.Dictionary<Tast.Val,(string * int * Expr)> = System.Collections.Generic.Dictionary(3, HashIdentity.Reference)
     // A memoization table for generating value types for big constant arrays  
     let vtgenerator=
          new MemoizationTable<(CompileLocation * int) , ILTypeSpec>
@@ -6988,7 +6988,7 @@ type IlxAssemblyGenerator(amap: Import.ImportMap, tcGlobals: TcGlobals, tcVal : 
     
     // The incremental state held by the ILX code generator
     let mutable ilxGenEnv = GetEmptyIlxGenEnv tcGlobals.ilg ccu
-    let intraAssemblyInfo = { StaticFieldInfo = new Dictionary<_,_>(HashIdentity.Structural) }
+    let intraAssemblyInfo = { StaticFieldInfo = new Dictionary<_,_>(3, HashIdentity.Structural) }
     let casApplied = new Dictionary<Stamp,bool>()
 
     /// Register a set of referenced assemblies with the ILX code generator

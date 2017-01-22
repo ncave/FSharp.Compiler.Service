@@ -9,6 +9,9 @@
 module internal Microsoft.FSharp.Compiler.TcGlobals
 
 open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+#endif
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.IL 
@@ -687,7 +690,7 @@ let mkTcGlobals (compilingFslib,sysCcu,ilg,fslibCcu,directoryToResolveRelativePa
   let mkSmallRefTupledTy l = match l with [] -> unit_ty | [h] -> h | tys -> mkRawRefTupleTy tys
   let tryMkForallTy d r = match d with [] -> r | tps -> TType_forall(tps,r)
 
-  let knownIntrinsics = Dictionary<(string*string), ValRef>(HashIdentity.Structural)
+  let knownIntrinsics = Dictionary<(string*string), ValRef>(3, HashIdentity.Structural)
 
   let makeIntrinsicValRef (enclosingEntity, logicalName, memberParentName, compiledNameOpt, typars, (argtys,rty))  =
       let ty = tryMkForallTy typars (mkIteratedFunTy (List.map mkSmallRefTupledTy argtys) rty)
@@ -845,11 +848,11 @@ let mkTcGlobals (compilingFslib,sysCcu,ilg,fslibCcu,directoryToResolveRelativePa
           | TType_tuple (_structness2, t8plus) -> TType_tuple (tupInfo, [t1;t2;t3;t4;t5;t6;t7] @ t8plus)
           | _ -> TType_tuple (tupInfo, l)
       | _ -> TType_tuple (tupInfo, l) 
-      
 
+      
   let mk_MFCore_attrib nm : BuiltinAttribInfo = 
       AttribInfo(mkILTyRef(IlxSettings.ilxFsharpCoreLibScopeRef (), FSharpLib.Core + "." + nm),mk_MFCore_tcref fslibCcu nm) 
-    
+
   let mkAttrib (nm:string) scopeRef : BuiltinAttribInfo = 
       let path, typeName = splitILTypeName nm
       AttribInfo(mkILTyRef (scopeRef, nm), mkSysTyconRef path typeName)

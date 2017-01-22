@@ -14,7 +14,7 @@ open Microsoft.FSharp.Compiler.AbstractIL.Internal.Support
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library 
 open Microsoft.FSharp.Compiler.AbstractIL.ILPdbWriter
 
-#if FX_NO_CORHOST_SIGNER
+#if FX_NO_CORHOST_SIGNER && !EXPORT_SIGDATA
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.StrongNameSign
 #endif
 
@@ -458,8 +458,7 @@ type MetadataTable<'T> =
 #if DEBUG
         tbl.lookups <- tbl.lookups + 1 
 #endif
-        let mutable res = Unchecked.defaultof<_>
-        let ok = tbl.dict.TryGetValue(x,&res)
+        let ok, res = tbl.dict.TryGetValue(x)
         if ok then res
         else tbl.AddSharedEntry x
 
@@ -762,8 +761,8 @@ let rec GetTypeRefAsTypeRefRow cenv (tref:ILTypeRef) =
     SharedRow [| ResolutionScope (rs1,rs2); nelem; nselem |]
 
 and GetTypeRefAsTypeRefIdx cenv tref = 
-    let mutable res = 0
-    if cenv.trefCache.TryGetValue(tref,&res) then res else 
+    let ok, res = cenv.trefCache.TryGetValue(tref)
+    if ok then res else 
     let res = FindOrAddSharedRow cenv TableNames.TypeRef (GetTypeRefAsTypeRefRow cenv tref)
     cenv.trefCache.[tref] <- res
     res
@@ -2546,40 +2545,44 @@ let GenMethodDefAsRow cenv env midx (md: ILMethodDef) =
     if md.IsEntryPoint then 
         if cenv.entrypoint <> None then failwith "duplicate entrypoint"
         else cenv.entrypoint <- Some (true, midx)
-    let codeAddr = 
-      (match md.mdBody.Contents with 
-      | MethodBody.IL ilmbody -> 
-          let addr = cenv.nextCodeAddr
-          let (localToken, code, seqpoints, rootScope) = GenILMethodBody md.Name cenv env ilmbody
+    let codeAddr =
+#if EXPORT_SIGDATA
+        0x0000
+#else
+     (match md.mdBody.Contents with 
+     | MethodBody.IL ilmbody -> 
+         let addr = cenv.nextCodeAddr
+         let (localToken, code, seqpoints, rootScope) = GenILMethodBody md.Name cenv env ilmbody
 
-          // Now record the PDB record for this method - we write this out later. 
-          if cenv.generatePdb then 
-            cenv.pdbinfo.Add  
-              { MethToken=getUncodedToken TableNames.Method midx
-                MethName=md.Name
-                LocalSignatureToken=localToken
-                Params= [| |] (* REVIEW *)
-                RootScope = rootScope
-                Range=  
-                  match ilmbody.SourceMarker with 
-                  | Some m  when cenv.generatePdb -> 
-                      // table indexes are 1-based, document array indexes are 0-based 
-                      let doc = (cenv.documents.FindOrAddSharedEntry m.Document) - 1 
+         // Now record the PDB record for this method - we write this out later. 
+         if cenv.generatePdb then 
+           cenv.pdbinfo.Add  
+             { MethToken=getUncodedToken TableNames.Method midx
+               MethName=md.Name
+               LocalSignatureToken=localToken
+               Params= [| |] (* REVIEW *)
+               RootScope = rootScope
+               Range=  
+                 match ilmbody.SourceMarker with 
+                 | Some m  when cenv.generatePdb -> 
+                     // table indexes are 1-based, document array indexes are 0-based 
+                     let doc = (cenv.documents.FindOrAddSharedEntry m.Document) - 1 
 
-                      Some ({ Document=doc
-                              Line=m.Line
-                              Column=m.Column },
-                            { Document=doc
-                              Line=m.EndLine
-                              Column=m.EndColumn })
-                  | _ -> None
-                SequencePoints=seqpoints }
-         
-          cenv.AddCode code
-          addr 
-      | MethodBody.Native -> 
-          failwith "cannot write body of native method - Abstract IL cannot roundtrip mixed native/managed binaries"
-      | _  -> 0x0000)
+                     Some ({ Document=doc
+                             Line=m.Line
+                             Column=m.Column },
+                           { Document=doc
+                             Line=m.EndLine
+                             Column=m.EndColumn })
+                 | _ -> None
+               SequencePoints=seqpoints }
+        
+         cenv.AddCode code
+         addr 
+     | MethodBody.Native -> 
+         failwith "cannot write body of native method - Abstract IL cannot roundtrip mixed native/managed binaries"
+     | _  -> 0x0000)
+#endif
 
     UnsharedRow 
        [| ULong  codeAddr  
@@ -2782,9 +2785,13 @@ let rec GenTypeDefPass3 enc cenv (td:ILTypeDef) =
       td.GenericParams |> List.iteri (fun n gp -> GenGenericParamPass3 cenv env n (tomd_TypeDef,tidx) gp)  
       td.NestedTypes.AsList |> GenTypeDefsPass3 (enc@[td.Name]) cenv
    with e ->
+#if EXPORT_SIGDATA
+      dprintfn "Error in pass3 for type %s, error: %s" td.Name e.Message
+#else
       failwith  ("Error in pass3 for type "+td.Name+", error: "+e.Message)
       reraise()
       raise e
+#endif
 
 and GenTypeDefsPass3 enc cenv tds =
   List.iter (GenTypeDefPass3 enc cenv) tds
@@ -2927,7 +2934,9 @@ let SortTableRows tab (rows:GenericRow[]) =
 
 let GenModule (cenv : cenv) (modul: ILModuleDef) = 
     let midx = AddUnsharedRow cenv TableNames.Module (GetModuleAsRow cenv modul)
+#if !EXPORT_SIGDATA
     List.iter (GenResourcePass3 cenv) modul.Resources.AsList 
+#endif
     let tds = destTypeDefsWithGlobalFunctionsFirst cenv.ilg modul.TypeDefs
     reportTime cenv.showTimes "Module Generation Preparation"
     GenTypeDefsPass1 [] cenv tds
@@ -3543,7 +3552,8 @@ let writeBinaryAndReportMappings (outfile, ilg, pdbfile: string option, signer: 
 
     reportTime showTimes "Write Started";
     let isDll = modul.IsDLL
-    
+
+#if !EXPORT_SIGDATA  
     let signer = 
         match signer,modul.Manifest with
         | Some _, _ -> signer
@@ -3558,6 +3568,7 @@ let writeBinaryAndReportMappings (outfile, ilg, pdbfile: string option, signer: 
              dprintn "Note: it.";
              Some (ILStrongNameSigner.OpenPublicKey pubkey))
         | _ -> signer
+#endif
 
     let modul = 
         let pubkey =

@@ -152,8 +152,11 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
 
         /// Memoize compilation of custom operators.
         /// They're typically used more than once so this avoids some CPU and GC overhead.
+#if FABLE_COMPILER
+        let compiledOperators = Dictionary<_,string> (3, System.StringComparer.Ordinal)
+#else
         let compiledOperators = ConcurrentDictionary<_,string> (System.StringComparer.Ordinal)
-
+#endif
         fun opp ->
             // Has this operator already been compiled?
             compiledOperators.GetOrAdd(opp, fun (op:string) ->
@@ -165,7 +168,7 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
                     | true, x ->
                         sb.Append(x) |> ignore
                     | false, _ ->
-                        sb.Append(c) |> ignore
+                        sb.Append(string c) |> ignore
 
                 /// The compiled (mangled) operator name.
                 let opName = sb.ToString ()
@@ -202,8 +205,12 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
     let private decompileCustomOpName =
         // Memoize this operation. Custom operators are typically used more than once
         // so this avoids repeating decompilation.
-        let decompiledOperators = ConcurrentDictionary<_,_> (System.StringComparer.Ordinal)
 
+#if FABLE_COMPILER
+        let decompiledOperators = Dictionary<_,_> (3, System.StringComparer.Ordinal)
+#else
+        let decompiledOperators = ConcurrentDictionary<_,_> (System.StringComparer.Ordinal)
+#endif
         /// The minimum length of the name for a custom operator character.
         /// This value is used when initializing StringBuilders to avoid resizing.
         let minOperatorNameLength =
@@ -250,7 +257,7 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
                             // 'opCharName' matched the current position in 'opName'.
                             // Append the corresponding operator character to the StringBuilder
                             // and continue decompiling at the index following this instance of 'opCharName'.
-                            sb.Append opChar |> ignore
+                            sb.Append (string opChar) |> ignore
                             decompile sb (idx + opCharName.Length)
 
                 let opNamePrefixLen = opNamePrefix.Length
@@ -524,11 +531,11 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
             // split when seeing a separator
             | c, false when c = separator -> split (i+1, "", cur::group, false)
             // keep reading if a separator is inside quotation
-            | c, true when c = separator -> split (i+1, cur+(System.Char.ToString c), group, true)
+            | c, true when c = separator -> split (i+1, cur+(string c), group, true)
             // open or close quotation 
             | '\"', _ when isNotQuotedQuotation i -> split (i+1, cur+"\"", group, not insideQuotation) 
             // keep reading
-            | c, _ -> split (i+1, cur+(System.Char.ToString c), group, insideQuotation)
+            | c, _ -> split (i+1, cur+(string c), group, insideQuotation)
         split (0, "", [], false) |> Array.ofList
 
     // Return a string array delimited by the given separator up to the maximum number.
@@ -537,7 +544,7 @@ module (*internal*) Microsoft.FSharp.Compiler.PrettyNaming
         if count <= 1 then [| text |] else
         let mangledText  = splitAroundQuotation text separator
         match mangledText.Length > count with
-        | true -> Array.append (mangledText.[0..(count-2)]) ([| mangledText.[(count-1)..] |> String.concat (System.Char.ToString separator) |])
+        | true -> Array.append (mangledText.[0..(count-2)]) ([| mangledText.[(count-1)..] |> String.concat (string separator) |])
         | false -> mangledText
 
     let [<Literal>] FSharpModuleSuffix = "Module"

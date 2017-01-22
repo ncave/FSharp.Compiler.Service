@@ -12,7 +12,7 @@ open Microsoft.FSharp.Compiler.AbstractIL.Internal
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Bytes
 open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
-#if FX_NO_CORHOST_SIGNER
+#if FX_NO_CORHOST_SIGNER && !EXPORT_SIGDATA
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.StrongNameSign
 #endif
 open System
@@ -1296,8 +1296,13 @@ let signerOpenPublicKeyFile filePath = FileSystem.ReadAllBytesShim(filePath)
 let signerOpenKeyPairFile filePath = FileSystem.ReadAllBytesShim(filePath)
 
 let signerGetPublicKeyForKeyPair (kp:keyPair) : pubkey = 
+#if EXPORT_SIGDATA
+    ignore kp
+    raise (NotImplementedException("signerGetPublicKeyForKeyPair is not yet implemented"))
+#else
     let reply = (StrongNameSign.getPublicKeyForKeyPair kp)
     reply
+#endif
 
 let signerGetPublicKeyForKeyContainer (_kcName:keyContainerName) : pubkey = 
     raise (NotImplementedException("signerGetPublicKeyForKeyContainer is not yet implemented"))
@@ -1306,10 +1311,20 @@ let signerCloseKeyContainer (_kc:keyContainerName) :unit =
     raise (NotImplementedException("signerCloseKeyContainer is not yet implemented"))
 
 let signerSignatureSize (pk:pubkey) : int = 
+#if EXPORT_SIGDATA
+    ignore pk
+    raise (NotImplementedException("signerSignatureSize is not yet implemented"))
+#else
     (StrongNameSign.signatureSize pk)
+#endif
 
 let signerSignFileWithKeyPair (fileName:string) (kp:keyPair) :unit =
+#if EXPORT_SIGDATA
+    ignore fileName; ignore kp
+    raise (NotImplementedException("signerSignFileWithKeyPair is not yet implemented"))
+#else
     (StrongNameSign.signFile fileName kp)
+#endif
 
 let signerSignFileWithKeyContainer (_fileName:string) (_kcName:keyContainerName) : unit =  
     raise (NotImplementedException("signerSignFileWithKeyContainer is not yet implemented"))

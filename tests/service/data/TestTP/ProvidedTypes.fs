@@ -1714,7 +1714,7 @@ type AssemblyGenerator(assemblyFileName) =
         assembly.DefineDynamicModule("MainModule", Path.GetFileName assemblyFileName)
 #endif
     let typeMap = Dictionary<ProvidedTypeDefinition,TypeBuilder>(HashIdentity.Reference)
-    let typeMapExtra = Dictionary<string,TypeBuilder>(HashIdentity.Structural)
+    let typeMapExtra = Dictionary<string,TypeBuilder>(3, HashIdentity.Structural)
     let uniqueLambdaTypeName() = 
         // lambda name should be unique across all types that all type provider might contribute in result assembly
         sprintf "Lambda%O" (Guid.NewGuid()) 

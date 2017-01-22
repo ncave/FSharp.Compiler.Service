@@ -18,7 +18,7 @@
     <NoWarn>$(NoWarn);44;62;9</NoWarn>
     <ProjectGuid>{2E4D67B4-522D-4CF7-97E4-BA940F0B18F3}</ProjectGuid>
     <AllowCrossTargeting>true</AllowCrossTargeting>
-    <TargetFrameworkVersion Condition=" '$(TargetFrameworkVersion)' == '' ">v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion Condition=" '$(TargetFrameworkVersion)' == '' ">v4.6</TargetFrameworkVersion>
     <BaseAddress>0x06800000</BaseAddress>
     <OtherFlags>$(OtherFlags) /warnon:1182</OtherFlags>
     <Tailcalls>true</Tailcalls>
@@ -48,6 +48,15 @@
     <DefineConstants>$(DefineConstants);COMPILER_SERVICE</DefineConstants>
     <DefineConstants>$(DefineConstants);NO_STRONG_NAMES</DefineConstants>
     <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
+
+    <!-- uncomment these to export metadata -->
+    <!--
+    <DefineConstants>$(DefineConstants);EXPORT_SIGDATA</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_CORHOST_SIGNER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_LINKEDRESOURCES</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_PDB_READER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_PDB_WRITER</DefineConstants>
+    -->
     <TargetFSharpCoreVersion>4.4.0.0</TargetFSharpCoreVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">$(MSBuildProjectDirectory)\..\..\..\</SolutionDir>
     <TargetFrameworkProfile />

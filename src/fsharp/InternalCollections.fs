@@ -197,7 +197,7 @@ type internal List =
     static member groupByFirst( l : ('TKey * 'TValue) list) : ('TKey * 'TValue list) list =
         let nextIndex = ref 0
         let result = System.Collections.Generic.List<'TKey * System.Collections.Generic.List<'TValue>>()
-        let keyToIndex = Dictionary<'TKey,int>(HashIdentity.Structural)
+        let keyToIndex = Dictionary<'TKey,int>(3, HashIdentity.Structural)
         let indexOfKey(key) =
             match keyToIndex.TryGetValue(key) with
             | true, v -> v
@@ -220,6 +220,6 @@ type internal List =
 
     /// Return each distinct item in the list using reference equality.
     static member referenceDistinct( l : 'T list) : 'T list when 'T : not struct =
-        let set = System.Collections.Generic.Dictionary<'T,bool>(HashIdentity.Reference)
+        let set = System.Collections.Generic.Dictionary<'T,bool>(3, HashIdentity.Reference)
         l |> List.iter(fun i->set.Add(i,true))
         set |> Seq.map(fun kv->kv.Key) |> List.ofSeq

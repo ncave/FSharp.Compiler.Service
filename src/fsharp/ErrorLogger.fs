@@ -88,21 +88,36 @@ let inline protectAssemblyExplorationNoReraise dflt1 dflt2 f  =
         | UnresolvedPathReferenceNoRange _ -> dflt1
         | _ -> dflt2
 
+#if FABLE_COMPILER
+let (|IsException|_|) exnTypeName (exn: exn) =
+    if exn.GetType().FullName = exnTypeName then
+        Some (sprintf "%s (%s)" exn.Message (exn.GetType().Name))
+    else None
+#endif
+
 // Attach a range if this is a range dual exception.
 let rec AttachRange m (exn:exn) = 
     if m = range0 then exn
     else 
         match exn with
         // Strip TargetInvocationException wrappers
-        | :? System.Reflection.TargetInvocationException -> AttachRange m exn.InnerException
         | UnresolvedReferenceNoRange(a) -> UnresolvedReferenceError(a,m)
         | UnresolvedPathReferenceNoRange(a,p) -> UnresolvedPathReference(a,p,m)
-        | Failure(msg) -> InternalError(msg^" (Failure)",m)
-        | :? System.ArgumentException as exn -> InternalError(exn.Message + " (ArgumentException)",m)
+#if FABLE_COMPILER
+        | IsException "System.Reflection.TargetInvocationException" msg -> InternalError(msg, m)
+        | IsException "System.Exception" msg -> InternalError(msg, m)
+        | IsException "System.ArgumentException" msg -> InternalError(msg, m)
+#else
+        | :? System.Reflection.TargetInvocationException -> AttachRange m exn.InnerException
+        | Failure(msg) -> InternalError(msg + " (Failure)",m)
+        | :? System.ArgumentException -> InternalError(exn.Message + " (ArgumentException)",m)
+#endif
         | notARangeDual -> notARangeDual
 
 //----------------------------------------------------------------------------
 // Error logger interface
+
+#if !FABLE_COMPILER
 
 type Exiter = 
     abstract Exit : int -> 'T 
@@ -116,6 +131,7 @@ let QuitProcessExiter =
             with _ ->  
                 ()             
             failwithf "%s" <| FSComp.SR.elSysEnvExitDidntExit() } 
+#endif
 
 /// Closed enumeration of build phases.
 type BuildPhase =
@@ -288,6 +304,7 @@ type internal CompileThreadStatic =
 module ErrorLoggerExtensions = 
     open System.Reflection
 
+#if !FABLE_COMPILER
     // Instruct the exception not to reset itself when thrown again.
     // Design Note: This enables the compiler to prompt the user to send mail to fsbugs@microsoft.com, 
     // by catching the exception, prompting and then propagating the exception with reraise. 
@@ -319,6 +336,7 @@ module ErrorLoggerExtensions =
             raise exn
         | _ -> ()
 #endif
+#endif
 
     type ErrorLogger with  
         member x.ErrorR  exn = match exn with StopProcessing | ReportedError _ -> raise exn | _ -> x.ErrorSink(PhasedError.Create(exn,CompileThreadStatic.BuildPhase))
@@ -334,14 +352,18 @@ module ErrorLoggerExtensions =
             (* Don't send ThreadAbortException down the error channel *)
 #if FX_REDUCED_EXCEPTIONS
 #else
+#if !FABLE_COMPILER
             | :? System.Threading.ThreadAbortException | WrappedError((:? System.Threading.ThreadAbortException),_) ->  ()
+#endif
 #endif
             | ReportedError _  | WrappedError(ReportedError _,_)  -> ()
             | StopProcessing | WrappedError(StopProcessing,_) -> raise exn
             | _ ->
                 try  
                     x.ErrorR (AttachRange m exn) // may raise exceptions, e.g. an fsi error sink raises StopProcessing.
+#if !FABLE_COMPILER
                     ReraiseIfWatsonable(exn)
+#endif
                 with
                   | ReportedError _ | WrappedError(ReportedError _,_)  -> ()
         member x.StopProcessingRecovery (exn:exn) (m:range) =
@@ -512,13 +534,24 @@ let AtLeastOneD f l = MapD f l ++ (fun res -> ResultD (List.exists id res))
 
 let stringThatIsAProxyForANewlineInFlatErrors = new System.String[|char 29 |]
 
+#if !FABLE_COMPILER
 let NewlineifyErrorString (message:string) = message.Replace(stringThatIsAProxyForANewlineInFlatErrors, Environment.NewLine)
+#endif
 
 /// fixes given string by replacing all control chars with spaces.
 /// NOTE: newlines are recognized and replaced with stringThatIsAProxyForANewlineInFlatErrors (ASCII 29, the 'group separator'), 
 /// which is decoded by the IDE with 'NewlineifyErrorString' back into newlines, so that multi-line errors can be displayed in QuickInfo
 let NormalizeErrorString (text : string) =    
-    if isNull text then nullArg "text"
+
+#if FABLE_COMPILER
+    let text = text.Trim()
+                   .Replace("\r\n", stringThatIsAProxyForANewlineInFlatErrors)
+                   .Replace("\n", stringThatIsAProxyForANewlineInFlatErrors)
+    let isControl c = (c >= '\u0000' && c <= '\u001F') || (c >= '\u007F' && c <= '\u009F')
+    let replaceCC c = if isControl c then ' ' else c
+    String.map replaceCC text
+#else
+    if text = null then nullArg "text"
     let text = text.Trim()
 
     let buf = System.Text.StringBuilder()
@@ -540,3 +573,4 @@ let NormalizeErrorString (text : string) =
                 1
         i <- i + delta
     buf.ToString()
+#endif

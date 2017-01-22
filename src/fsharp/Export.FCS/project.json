@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0-*",
+  "buildOptions": {
+    "debugType": "portable",
+    "emitEntryPoint": true,
+    "compilerName": "fsc",
+    "compile": {
+      "includeFiles": [
+        "Program.fs"
+      ]
+    },
+    "define": [
+      "DOTNETCORE",
+      "TRACE"
+    ],
+    "nowarn": [],
+    "xmlDoc": true,
+    "delaySign": true,
+    "warningsAsErrors": true,
+    "additionalArguments": [
+      "--fullpaths",
+      "--flaterrors",
+      "--warnon:1182"
+   ]
+  },
+  "dependencies": {
+    "Microsoft.FSharp.Core.netcore": "1.0.0-alpha-161111",
+    "FSharp.Compiler.Service": {
+      "version": "8.0.0",
+      "target": "project"
+    }
+  },
+  "tools": {
+    "dotnet-compile-fsc": {
+      "version": "1.0.0-preview2-*",
+      "imports": "dnxcore50"
+    }
+  },
+  "frameworks": {
+    //"net462": {},
+    "netcoreapp1.0": {
+      "dependencies": {
+        "Microsoft.NETCore.App": {
+          "version": "1.0.0-*",
+          "type": "platform"
+        }
+      }
+    }
+  }
+}

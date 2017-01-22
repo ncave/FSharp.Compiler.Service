@@ -3,7 +3,12 @@
 module internal Microsoft.FSharp.Compiler.Layout
 
 open System
+#if FABLE_COMPILER
+open Internal.Utilities
+open Microsoft.FSharp.Core.Operators
+#else
 open System.IO
+#endif
 open Internal.Utilities.StructuredFormat
 open Microsoft.FSharp.Core.Printf
 
@@ -260,6 +265,7 @@ let stringR =
 type NoState = NoState
 type NoResult = NoResult
 
+#if !FABLE_COMPILER
 /// channel LayoutRenderer
 let channelR (chan:TextWriter) =
   { new LayoutRenderer<NoResult,NoState> with 
@@ -268,6 +274,7 @@ let channelR (chan:TextWriter) =
       member r.AddBreak z n = chan.WriteLine(); chan.Write (spaces n); z
       member r.AddTag z (tag,attrs,start) =  z
       member r.Finish z = NoResult }
+#endif
 
 /// buffer render
 let bufferR os =
@@ -283,5 +290,7 @@ let bufferR os =
 //--------------------------------------------------------------------------
 
 let showL                   layout = renderL stringR         layout
+#if !FABLE_COMPILER
 let outL (chan:TextWriter)  layout = renderL (channelR chan) layout |> ignore
+#endif
 let bufferL os              layout = renderL (bufferR os)    layout |> ignore

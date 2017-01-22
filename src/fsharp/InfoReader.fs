@@ -5,6 +5,10 @@
 module internal Microsoft.FSharp.Compiler.InfoReader
 
 open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core.Operators
+#endif
 
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics
@@ -88,7 +92,7 @@ type PropertyCollector(g,amap,m,typ,optFilter,ad) =
                 pinfo1.IsStatic = pinfo2.IsStatic &&
                 PropInfosEquivByNameAndPartialSig EraseNone g amap m pinfo1 pinfo2 &&
                 pinfo1.IsDefiniteFSharpOverride = pinfo2.IsDefiniteFSharpOverride )
-    let props = new System.Collections.Generic.Dictionary<PropInfo,PropInfo>(hashIdentity)
+    let props = new System.Collections.Generic.Dictionary<PropInfo,PropInfo>(3, hashIdentity)
     let add pinfo =
         if props.ContainsKey(pinfo) then 
             match props.[pinfo], pinfo with 

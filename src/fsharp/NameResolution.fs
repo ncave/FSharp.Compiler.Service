@@ -8,6 +8,11 @@
 module internal Microsoft.FSharp.Compiler.NameResolution
 
 open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core
+open Microsoft.FSharp.Core.Operators
+#endif
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.Range
 open Microsoft.FSharp.Compiler.Ast
@@ -40,6 +45,9 @@ type NameResolver(g:TcGlobals,
                   amap: Import.ImportMap, 
                   infoReader: InfoReader, 
                   instantiationGenerator: (range -> Typars -> TypeInst)) =
+#if FABLE_COMPILER
+    new (g,amap,infoReader,instantiationGenerator,_) = NameResolver(g,amap,infoReader,instantiationGenerator)
+#endif
     /// Used to transform typars into new inference typars 
     // instantiationGenerator is a function to help us create the
     // type parameters by copying them from type parameter specifications read
@@ -1346,12 +1354,15 @@ type TcResultsSinkImpl(g, ?source: string) =
     let capturedFormatSpecifierLocations = ResizeArray<_>()
     let capturedNameResolutionIdentifiers = 
         new System.Collections.Generic.Dictionary<pos * string, unit>
-            ( { new IEqualityComparer<_> with 
+            (3, { new IEqualityComparer<_> with 
                     member __.GetHashCode((p:pos,i)) = p.Line + 101 * p.Column + hash i
                     member __.Equals((p1,i1),(p2,i2)) = posEq p1 p2 && i1 =  i2 } )
     let capturedMethodGroupResolutions = ResizeArray<_>()
     let allowedRange (m:range) = not m.IsSynthetic       
 
+#if FABLE_COMPILER
+    new (g, source, _) = TcResultsSinkImpl(g, source)
+#endif
     member this.GetResolutions() = 
         TcResolutions(capturedEnvs, capturedExprTypings, capturedNameResolutions, capturedMethodGroupResolutions)
 
@@ -1387,9 +1398,17 @@ type TcResultsSinkImpl(g, ?source: string) =
                     | _ -> false
                 
                 if replace then 
+#if FABLE_COMPILER
+                    let r1 = capturedNameResolutions.FindAll(fun cnr -> cnr.Range <> m)
+                    let r2 = capturedMethodGroupResolutions.FindAll(fun cnr -> cnr.Range <> m)
+                    capturedNameResolutions.Clear()
+                    capturedMethodGroupResolutions.Clear()
+                    capturedNameResolutions.AddRange(r1)
+                    capturedMethodGroupResolutions.AddRange(r2)
+#else
                     capturedNameResolutions.RemoveAll(fun cnr -> cnr.Range = m) |> ignore
                     capturedMethodGroupResolutions.RemoveAll(fun cnr -> cnr.Range = m) |> ignore
-
+#endif
                 if not alreadyDone then 
                     capturedNameResolutions.Add(CapturedNameResolution(endPos,item,occurenceType,denv,nenv,ad,m)) 
                     capturedMethodGroupResolutions.Add(CapturedNameResolution(endPos,itemMethodGroup,occurenceType,denv,nenv,ad,m)) 
@@ -1696,7 +1715,11 @@ let SelectPropInfosFromExtMembers (infoReader:InfoReader,ad,optFilter) declaring
     let g = infoReader.g
     let amap = infoReader.amap
     // NOTE: multiple "open"'s push multiple duplicate values into eIndexedExtensionMembers, hence setify.
+#if FABLE_COMPILER
+    let seen = HashSet<_>() //TODO: implement Map/Set with comparer
+#else
     let seen = HashSet(ExtensionMember.Comparer g)
+#endif
     let propCollector = new PropertyCollector(g,amap,m,declaringTy,optFilter,ad)
     for emem in extMemInfos do
         if seen.Add emem then
@@ -1743,7 +1766,11 @@ let IntrinsicMethInfosOfType (infoReader:InfoReader) (optFilter,ad,allowMultiInt
 let SelectMethInfosFromExtMembers (infoReader:InfoReader) optFilter apparentTy m extMemInfos = 
     let g = infoReader.g
     // NOTE: multiple "open"'s push multiple duplicate values into eIndexedExtensionMembers 
+#if FABLE_COMPILER
+    let seen = HashSet<_>() //TODO: implement Map/Set with comparer
+#else
     let seen = HashSet(ExtensionMember.Comparer g)
+#endif
     [
         for emem in extMemInfos do
             if seen.Add emem then

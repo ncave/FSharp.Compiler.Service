@@ -37,10 +37,10 @@ type internal QueueList<'T>(firstElementsIn:'T list, lastElementsRevIn: 'T list,
     member x.Append(ys:seq<_>) = QueueList(firstElements, (List.rev (Seq.toList ys) @ lastElementsRev), numLastElements+1)
     
     /// This operation is O(n) anyway, so executing ToList() here is OK
-    interface IEnumerable<'T> with 
-        member x.GetEnumerator() : IEnumerator<'T> = (x.ToList() :> IEnumerable<_>).GetEnumerator()
     interface IEnumerable with 
         member x.GetEnumerator() : IEnumerator = ((x :> IEnumerable<'T>).GetEnumerator() :> IEnumerator)
+    interface IEnumerable<'T> with 
+        member x.GetEnumerator() : IEnumerator<'T> = (x.ToList() :> IEnumerable<_>).GetEnumerator()
 
 [<CompilationRepresentation(CompilationRepresentationFlags.ModuleSuffix)>]
 module internal QueueList =

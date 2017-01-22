@@ -8,6 +8,11 @@ open System
 open System.Collections
 open System.Collections.Generic
 open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core
+open Microsoft.FSharp.Core.Operators
+#endif
 
 #if FX_RESHAPED_REFLECTION
 open Microsoft.FSharp.Core.ReflectionAdapters
@@ -20,9 +25,10 @@ let (>>>&) (x:int32) (n:int32) = int32 (uint32 x >>> n)
 let notlazy v = Lazy<_>.CreateFromValue v
 
 let inline isNonNull x = not (isNull x)
-let inline nonNull msg x = if isNull x then failwith ("null: " ^ msg) else x
+let inline nonNull msg x = if isNull x then failwith ("null: " + msg) else x
 let (===) x y = LanguagePrimitives.PhysicalEquality x y
 
+#if !FABLE_COMPILER
 //---------------------------------------------------------------------
 // Library: ReportTime
 //---------------------------------------------------------------------
@@ -36,13 +42,19 @@ let reportTime =
             let first = match !tFirst with None -> (tFirst := Some t; t) | Some t -> t
             printf "ilwrite: TIME %10.3f (total)   %10.3f (delta) - %s\n" (t - first) (t - prev) descr
             tPrev := Some t
+#endif
 
 //-------------------------------------------------------------------------
 // Library: projections
 //------------------------------------------------------------------------
 
-[<Struct>]
 /// An efficient lazy for inline storage in a class type. Results in fewer thunks.
+#if FABLE_COMPILER
+type InlineDelayInit<'T when 'T : not struct>(f: unit -> 'T) = 
+    let store = lazy(f())
+    member x.Value = store.Force()
+#else
+[<Struct>]
 type InlineDelayInit<'T when 'T : not struct> = 
     new (f: unit -> 'T) = {store = Unchecked.defaultof<'T>; func = System.Func<_>(f) } 
     val mutable store : 'T
@@ -54,6 +66,7 @@ type InlineDelayInit<'T when 'T : not struct> =
         let res = System.Threading.LazyInitializer.EnsureInitialized(&x.store, x.func) 
         x.func <- Unchecked.defaultof<_>
         res
+#endif
 
 //-------------------------------------------------------------------------
 // Library: projections
@@ -172,7 +185,7 @@ module Option =
 
 module List = 
 
-    let item n xs = List.nth xs n
+    let item n xs = List.item n xs
 #if FX_RESHAPED_REFLECTION
     open PrimReflectionAdapters
     open Microsoft.FSharp.Core.ReflectionAdapters
@@ -233,7 +246,9 @@ module List =
         ch [] [] l
 
     let mapq (f: 'T -> 'T) inp =
+#if !FABLE_COMPILER
         assert not (typeof<'T>.IsValueType) 
+#endif
         match inp with
         | [] -> inp
         | _ -> 
@@ -398,10 +413,10 @@ module String =
         if r = -1 then indexNotFound() else r
 
     let contains (s:string) (c:char) = 
-        s.IndexOf(c,0,String.length s) <> -1
+        s.IndexOf(c) <> -1
 
     let order = LanguagePrimitives.FastGenericComparer<string>
-   
+
     let lowercase (s:string) =
         s.ToLowerInvariant()
 
@@ -512,7 +527,8 @@ module Eventually =
             else forceWhile check (work()) 
 
     let force e = Option.get (forceWhile (fun () -> true) e)
-        
+
+#if !FABLE_COMPILER
     /// Keep running the computation bit by bit until a time limit is reached.
     /// The runner gets called each time the computation is restarted
     let repeatedlyProgressUntilDoneOrTimeShareOver timeShareInMilliseconds runner e = 
@@ -532,6 +548,7 @@ module Eventually =
                         loop(work())
             loop(e))
         runTimeShare e
+#endif
 
     let rec bind k e = 
         match e with 
@@ -590,7 +607,7 @@ let _ = eventually { use x = null in return 1 }
 //---------------------------------------------------------------------------
 
 type UniqueStampGenerator<'T when 'T : equality>() = 
-    let encodeTab = new Dictionary<'T,int>(HashIdentity.Structural)
+    let encodeTab = new Dictionary<'T,int>(3, HashIdentity.Structural)
     let mutable nItems = 0
     let encode str = 
         if encodeTab.ContainsKey(str)
@@ -610,16 +627,18 @@ type UniqueStampGenerator<'T when 'T : equality>() =
     
 type MemoizationTable<'T,'U>(compute: 'T -> 'U, keyComparer: IEqualityComparer<'T>, ?canMemoize) = 
     
-    let table = new System.Collections.Generic.Dictionary<'T,'U>(keyComparer) 
+    let table = new System.Collections.Generic.Dictionary<'T,'U>(3, keyComparer) 
     member t.Apply(x) = 
         if (match canMemoize with None -> true | Some f -> f x) then 
-            let mutable res = Unchecked.defaultof<'U>
-            let ok = table.TryGetValue(x,&res)
+#if FABLE_COMPILER
+            (
+#else
+            let ok, res = table.TryGetValue(x)
             if ok then res 
             else
                 lock table (fun () -> 
-                    let mutable res = Unchecked.defaultof<'U> 
-                    let ok = table.TryGetValue(x,&res)
+#endif
+                    let ok, res = table.TryGetValue(x)
                     if ok then res 
                     else
                         let res = compute x
@@ -661,12 +680,16 @@ type LazyWithContext<'T,'ctxt> =
         match x.funcOrException with 
         | null -> x.value 
         | _ -> 
+#if FABLE_COMPILER
+            x.UnsynchronizedForce(ctxt)
+#else
             // Enter the lock in case another thread is in the process of evaluating the result
             System.Threading.Monitor.Enter(x);
             try 
                 x.UnsynchronizedForce(ctxt)
             finally
                 System.Threading.Monitor.Exit(x)
+#endif
 
     member x.UnsynchronizedForce(ctxt) = 
         match x.funcOrException with 
@@ -697,11 +720,11 @@ module Tables =
     let memoize f = 
         let t = new Dictionary<_,_>(1000, HashIdentity.Structural)
         fun x -> 
-            let mutable res = Unchecked.defaultof<_>
-            if t.TryGetValue(x, &res) then 
+            let ok, res = t.TryGetValue(x)
+            if ok then 
                 res 
             else
-                res <- f x; t.[x] <- res;  res
+                let res = f x in t.[x] <- res; res
 
 //-------------------------------------------------------------------------
 // Library: Name maps
@@ -808,10 +831,17 @@ type LayeredMap<'Key,'Value  when 'Key : comparison> = Map<'Key,'Value>
 type Map<'Key,'Value when 'Key : comparison> with
     static member Empty : Map<'Key,'Value> = Map.empty
 
+#if FABLE_COMPILER
+    member m.TryGetValue (key) = 
+        match m.TryFind key with 
+        | None -> false, Unchecked.defaultof<_>
+        | Some r -> true, r
+#else
     member m.TryGetValue (key,res:byref<'Value>) = 
         match m.TryFind key with 
         | None -> false
         | Some r -> res <- r; true
+#endif
 
     member x.Values = [ for (KeyValue(_,v)) in x -> v ]
     member x.AddAndMarkAsCollapsible (kvs: _[])   = (x,kvs) ||> Array.fold (fun x (KeyValue(k,v)) -> x.Add(k,v))
@@ -831,6 +861,7 @@ type LayeredMultiMap<'Key,'Value when 'Key : equality and 'Key : comparison>(con
     member x.Values = contents.Values |> List.concat
     static member Empty : LayeredMultiMap<'Key,'Value> = LayeredMultiMap LayeredMap.Empty
 
+#if !FABLE_COMPILER
 [<AutoOpen>]
 module Shim =
 
@@ -904,3 +935,4 @@ module Shim =
                 System.Text.Encoding.GetEncoding(n)
 
     let mutable FileSystem = DefaultFileSystem() :> IFileSystem 
+#endif //!FABLE_COMPILER
