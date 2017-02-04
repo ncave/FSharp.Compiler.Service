@@ -3,6 +3,10 @@
 /// Functions to format error message details
 module internal Microsoft.FSharp.Compiler.ErrorResolutionHints
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
+
 /// Filters predictions based on edit distance to an unknown identifier.
 let FilterPredictions unknownIdent allPredictions =
     let rec take n predictions = 

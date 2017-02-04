@@ -3,13 +3,17 @@
 /// Coordinating compiler operations - configuration, loading initial context, reporting errors etc.
 module internal Microsoft.FSharp.Compiler.CompileOps
 
+open Internal.Utilities
 open System
 open System.Text
 open System.IO
 open System.Collections.Generic
 open System.Runtime.CompilerServices
 
-open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Core
+open Microsoft.FSharp.Core.Operators
+#endif
 open Internal.Utilities.Text
 open Internal.Utilities.Collections
 open Internal.Utilities.Filename
@@ -232,9 +236,11 @@ let GetRangeOfError(err:PhasedError) =
       | HashLoadedSourceHasIssues(_,_,m) 
       | HashLoadedScriptConsideredSource(m) -> 
           Some m
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           RangeFromException e.InnerException
+#endif
 #if EXTENSIONTYPING
       | :? TypeProviderError as e -> e.Range |> Some
 #endif
@@ -356,10 +362,11 @@ let GetErrorNumber(err:PhasedError) =
 #endif
        (* DO NOT CHANGE THE NUMBERS *)
 
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           GetFromException e.InnerException
-      
+#endif     
       | WrappedError(e,_) -> GetFromException e   
 
       | Error ((n,_),_) -> n
@@ -373,6 +380,13 @@ let GetErrorNumber(err:PhasedError) =
       | _ -> 193
    GetFromException err.Exception
    
+let GetWarningNumber(m,s:string) =
+    try
+        Some (int32 s)
+    with err ->
+        warning(Error(FSComp.SR.buildInvalidWarningNumber(s),m))
+        None
+
 let GetWarningLevel err = 
   match err.Exception with 
   // Level 5 warnings
@@ -423,9 +437,11 @@ let SplitRelatedErrors(err:PhasedError) =
       | WrappedError (e,m) -> 
           let e,related = SplitRelatedException e
           WrappedError(e.Exception,m)|>ToPhased, related
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           SplitRelatedException e.InnerException
+#endif
       | e -> 
            ToPhased(e), []
     SplitRelatedException(err.Exception)
@@ -433,7 +449,9 @@ let SplitRelatedErrors(err:PhasedError) =
 
 let DeclareMesssage = Microsoft.FSharp.Compiler.DiagnosticMessage.DeclareResourceString
 
+#if !FABLE_COMPILER
 do FSComp.SR.RunStartupValidation()
+#endif
 let SeeAlsoE() = DeclareResourceString("SeeAlso","%s")
 let ConstraintSolverTupleDiffLengthsE() = DeclareResourceString("ConstraintSolverTupleDiffLengths","%d%d")
 let ConstraintSolverInfiniteTypesE() = DeclareResourceString("ConstraintSolverInfiniteTypes", "%s%s")
@@ -1365,6 +1383,7 @@ let OutputPhasedErrorR (os:System.Text.StringBuilder) (err:PhasedError) =
       | MSBuildReferenceResolutionWarning(code,message,_) 
       | MSBuildReferenceResolutionError(code,message,_) -> 
           os.Append(MSBuildReferenceResolutionErrorE().Format message code) |> ignore
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           OutputExceptionR os e.InnerException
@@ -1374,7 +1393,7 @@ let OutputPhasedErrorR (os:System.Text.StringBuilder) (err:PhasedError) =
       | :? System.NotSupportedException as e -> Printf.bprintf os "%s" e.Message
       | :? IOException as e -> Printf.bprintf os "%s" e.Message
       | :? System.UnauthorizedAccessException as e -> Printf.bprintf os "%s" e.Message
-
+#endif
       | e -> 
           os.Append(TargetInvocationExceptionWrapperE().Format e.Message) |> ignore
     #if DEBUG
@@ -1401,6 +1420,8 @@ type ErrorStyle =
     | TestErrors 
     | VSErrors
     | GccErrors
+
+#if !FABLE_COMPILER
 
 let SanitizeFileName fileName implicitIncludeDir =
     // The assert below is almost ok, but it fires in two cases:
@@ -1643,6 +1664,7 @@ let GetFsiLibraryName () = "FSharp.Compiler.Interactive.Settings"
 // .NET Core references
 let DefaultBasicReferencesForOutOfProjectSources = 
     [   yield Path.Combine(Path.GetDirectoryName(typeof<System.Object>.Assembly.Location),"mscorlib.dll"); // mscorlib
+        yield typeof<System.Object>.Assembly.Location; // System.Private.CoreLib
         yield typeof<System.Console>.Assembly.Location; // System.Console
         yield typeof<System.ComponentModel.DefaultValueAttribute>.Assembly.Location; // System.Runtime
         yield typeof<System.ComponentModel.PropertyChangedEventArgs>.Assembly.Location; // System.ObjectModel             
@@ -1794,13 +1816,6 @@ let ResolveFileUsingPaths(paths,m,name) =
     | None ->
         let searchMessage = String.concat "\n " paths
         raise (FileNameNotResolved(name,searchMessage,m))            
-
-let GetWarningNumber(m,s:string) =
-    try 
-        Some (int32 s)
-    with err -> 
-        warning(Error(FSComp.SR.buildInvalidWarningNumber(s),m))
-        None
 
 let ComputeMakePathAbsolute implicitIncludeDir (path : string) = 
     try  
@@ -3164,6 +3179,7 @@ type TcConfig private (data : TcConfigBuilder,validate:bool) =
     member tcConfig.GetPrimaryAssemblyCcuInitializer() = primaryAssemblyCcuInitializer
     member tcConfig.CoreLibraryDllReference() = fslibReference
                
+#endif //!FABLE_COMPILER
 
 let ReportWarning (globalWarnLevel : int, specificWarnOff : int list, specificWarnOn : int list) err = 
     let n = GetErrorNumber err
@@ -3431,6 +3447,8 @@ let ParseInput (lexer,errorLogger:ErrorLogger,lexbuf:UnicodeLexing.Lexbuf,defaul
         // OK, now commit the errors, since the ScopedPragmas will (hopefully) have been scraped
         errorLogger.CommitDelayedErrorsAndWarnings()
     (* unwindEL, unwindBP dispose *)
+
+#if !FABLE_COMPILER
 
 //----------------------------------------------------------------------------
 // parsing - ParseOneInputFile
@@ -5165,6 +5183,66 @@ let CheckSimulateException(tcConfig:TcConfig) =
     | Some("tc-fail") -> failwith "simulated"
     | _ -> ()
 
+#endif //!FABLE_COMPILER
+
+#if FABLE_COMPILER
+
+type internal ImportedAssembly = 
+    { ILScopeRef: ILScopeRef 
+      FSharpViewOfMetadata: CcuThunk
+      AssemblyAutoOpenAttributes: string list
+      AssemblyInternalsVisibleToAttributes: string list
+#if EXTENSIONTYPING
+      IsProviderGenerated: bool
+      mutable TypeProviders: Tainted<Microsoft.FSharp.Core.CompilerServices.ITypeProvider> list
+#endif
+      FSharpOptimizationData : Microsoft.FSharp.Control.Lazy<Option<Optimizer.LazyModuleInfo>> }
+
+// cut-down TcConfig
+type TcConfig() =
+    member x.implicitIncludeDir = ""
+    member x.compilingFslib = false
+    member x.isInteractive = false
+    member x.mlCompatibility = false
+    member x.emitDebugInfoInQuotations = false
+    member x.conditionalCompilationDefines = []
+    member x.globalWarnAsError = false
+    member x.globalWarnLevel = 3
+    member x.specificWarnOff: int list = []
+    member x.specificWarnOn: int list = []
+    member x.specificWarnAsError: int list = []
+    member x.specificWarnAsWarn: int list = []
+
+// cut-down TcImports
+type TcImports() =
+    let mutable tcGlobalsOpt = None
+    let mutable ccuMap = Map<string, ImportedAssembly>([])
+
+    // This is the main "assembly reference --> assembly" resolution routine.
+    let FindCcuInfo (_, assemblyName) =
+        match ccuMap |> Map.tryFind assemblyName with
+        | Some ccuInfo -> ResolvedCcu(ccuInfo.FSharpViewOfMetadata)
+        | None -> UnresolvedCcu(assemblyName)
+
+    member x.SetTcGlobals g =
+        tcGlobalsOpt <- Some g
+    member x.GetTcGlobals() =
+        tcGlobalsOpt.Value
+    member x.SetCcuMap m =
+        ccuMap <- m
+    member x.GetImportedAssemblies() =
+        ccuMap.Values
+
+    member x.GetImportMap() =
+        let loaderInterface =
+            { new Import.AssemblyLoader with
+                    member x.LoadAssembly (m, ilAssemblyRef) =
+                        FindCcuInfo(m, ilAssemblyRef.Name)
+            }
+        new Import.ImportMap (tcGlobalsOpt.Value, loaderInterface)
+
+#endif //FABLE_COMPILER
+
 //----------------------------------------------------------------------------
 // Type-check sets of files
 //--------------------------------------------------------------------------
@@ -5244,7 +5322,9 @@ let TypeCheckOneInputEventually
        tcGlobals, prefixPathOpt, tcSink, tcState: TcState, inp: ParsedInput) =
   eventually {
    try 
+#if !FABLE_COMPILER
       CheckSimulateException(tcConfig)
+#endif
       let (RootSigsAndImpls(rootSigs,rootImpls,allSigModulTyp,allImplementedSigModulTyp)) = tcState.tcsRootSigsAndImpls
       let m = inp.Range
       let amap = tcImports.GetImportMap()

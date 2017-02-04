@@ -2,6 +2,9 @@
 
 module internal Internal.Utilities.Filename
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System.IO
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library 
 
@@ -12,7 +15,11 @@ exception IllegalFileNameChar of string * char
 /// a new array each time it's called (by necessity, for security reasons).
 /// This is only used within `checkPathForIllegalChars`, and is only read from.
 let illegalPathChars =
+#if FABLE_COMPILER
+    let chars = Seq.toArray "<>|\"\b\0\t" //TODO: more
+#else
     let chars = Path.GetInvalidPathChars ()
+#endif
     chars
 
 type private PathState =
@@ -45,30 +52,50 @@ let hasExtension (s:string) =
     checkPathForIllegalChars s
     let sLen = s.Length
     (sLen >= 1 && s.[sLen - 1] = '.' && s <> ".." && s <> ".") 
+#if FABLE_COMPILER
+    //TODO: proper implementation
+#else
     || Path.HasExtension(s)
+#endif
 
 let chopExtension (s:string) =
     checkPathForIllegalChars s
     if s = "." then "" else // for OCaml compatibility
     if not (hasExtension s) then 
         raise (System.ArgumentException("chopExtension")) // message has to be precisely this, for OCaml compatibility, and no argument name can be set
+#if FABLE_COMPILER
+    s //TODO: proper implementation
+#else
     Path.Combine (Path.GetDirectoryName s,Path.GetFileNameWithoutExtension(s))
+#endif
 
 let directoryName (s:string) = 
     checkPathForIllegalChars s
     if s = "" then "."
     else 
-      match Path.GetDirectoryName(s) with 
-      | null -> if FileSystem.IsPathRootedShim(s) then s else "."
-      | res -> if res = "" then "." else res
+#if FABLE_COMPILER
+        s //TODO: proper implementation
+#else
+        match Path.GetDirectoryName(s) with 
+        | null -> if FileSystem.IsPathRootedShim(s) then s else "."
+        | res -> if res = "" then "." else res
+#endif
 
 let fileNameOfPath s = 
     checkPathForIllegalChars s
+#if FABLE_COMPILER
+    s //TODO: proper implementation
+#else
     Path.GetFileName(s)
+#endif
 
 let fileNameWithoutExtension s = 
     checkPathForIllegalChars s
+#if FABLE_COMPILER
+    s //TODO: proper implementation
+#else
     Path.GetFileNameWithoutExtension(s)
+#endif
 
 let trimQuotes (s:string) =
     s.Trim( [|' '; '\"'|] )

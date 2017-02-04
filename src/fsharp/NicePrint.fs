@@ -103,7 +103,7 @@ module internal PrintUtilities =
         let tcref = attrib.TyconRef
         squareAngleL (layoutTyconRefImpl true denv tcref)
 
-module private PrintIL = 
+module PrintIL = 
 
     open Microsoft.FSharp.Compiler.AbstractIL.IL
         
@@ -172,7 +172,11 @@ module private PrintIL =
         let numParms = 
             // can't find a way to see the number of generic parameters for *this* class (the GenericParams also include type variables for enclosing classes); this will have to do
             let rightMost = className |> SplitNamesForILPath |> List.last
+#if FABLE_COMPILER
+            match System.Int32.TryParse(rightMost) with
+#else
             match System.Int32.TryParse(rightMost, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture) with 
+#endif
             | true, n -> n
             | false, _ -> 0 // looks like it's non-generic
         ilTyparSubst |> List.rev |> List.take numParms |> List.rev
@@ -329,14 +333,22 @@ module private PrintIL =
                 | ILFieldInit.UInt32 x -> Some ((x |> int64 |> string) + "u")
                 | ILFieldInit.UInt64 x -> Some ((x |> int64 |> string) + "UL")
                 | ILFieldInit.Single d -> 
+#if FABLE_COMPILER
+                    let s = string d
+#else
                     let s = d.ToString ("g12", System.Globalization.CultureInfo.InvariantCulture)
+#endif
                     let s = 
                         if String.forall (fun c -> System.Char.IsDigit c || c = '-')  s 
                         then s + ".0" 
                         else s
                     Some (s + "f")
                 | ILFieldInit.Double d -> 
+#if FABLE_COMPILER
+                      let s = string d
+#else
                       let s = d.ToString ("g12", System.Globalization.CultureInfo.InvariantCulture)
+#endif
                       if String.forall (fun c -> System.Char.IsDigit c || c = '-')  s 
                       then Some (s + ".0")
                       else Some s
@@ -530,7 +542,7 @@ module private PrintIL =
             (pre ^^ wordL "=") @@-- body
                 
 
-module private PrintTypes = 
+module PrintTypes = 
     // Note: We need nice printing of constants in order to print literals and attributes 
     let layoutConst g ty c =
         let str = 
@@ -547,12 +559,20 @@ module private PrintTypes =
             | Const.IntPtr x      -> (x |> string)+"n"
             | Const.UIntPtr x     -> (x |> string)+"un"
             | Const.Single d      -> 
-                 (let s = d.ToString("g12",System.Globalization.CultureInfo.InvariantCulture)
-                  if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
+#if FABLE_COMPILER
+                 let s = string d
+#else
+                 let s = d.ToString("g12",System.Globalization.CultureInfo.InvariantCulture)
+#endif
+                 (if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                   then s + ".0" 
                   else s) + "f"
             | Const.Double d      -> 
+#if FABLE_COMPILER
+                let s = string d
+#else
                 let s = d.ToString("g12",System.Globalization.CultureInfo.InvariantCulture)
+#endif
                 if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                 then s + ".0" 
                 else s
@@ -682,14 +702,22 @@ module private PrintTypes =
         | ILAttribElem.UInt64 x         -> wordL ((x |> string)+"UL")
         | ILAttribElem.Single x         -> 
             let str =
+#if FABLE_COMPILER
+                let s = string x
+#else
                 let s = x.ToString("g12",System.Globalization.CultureInfo.InvariantCulture)
+#endif
                 (if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                  then s + ".0" 
                  else s) + "f"
             wordL str
         | ILAttribElem.Double x         -> 
             let str =
+#if FABLE_COMPILER
+                let s = string x
+#else
                 let s = x.ToString("g12",System.Globalization.CultureInfo.InvariantCulture)
+#endif
                 if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                 then s + ".0" 
                 else s
@@ -849,7 +877,7 @@ module private PrintTypes =
     and private layoutTraitWithInfo denv env (TTrait(tys,nm,memFlags,argtys,rty,_)) =
         let nm = DemangleOperatorName nm
         if denv.shortConstraints then 
-            wordL ("member "^nm)
+            wordL ("member "+nm)
         else
             let rty = GetFSharpViewOfReturnType denv.g rty
             let stat = layoutMemberFlags memFlags
@@ -967,7 +995,7 @@ module private PrintTypes =
                 match argInfo.Name, isOptionalArg, isParamArray, tryDestOptionTy denv.g ty with 
                 // Layout an optional argument 
                 | Some(id), true, _, Some ty -> 
-                    leftL ("?"^id.idText) ^^ sepL ":" ^^ layoutTypeWithInfoAndPrec denv env 2 ty 
+                    leftL ("?"+id.idText) ^^ sepL ":" ^^ layoutTypeWithInfoAndPrec denv env 2 ty 
                 // Layout an unnamed argument 
                 | None, _,_, _ -> 
                     layoutTypeWithInfoAndPrec denv env 2 ty
@@ -1074,7 +1102,7 @@ module private PrintTypes =
         layoutTypeWithInfoAndPrec denv SimplifyTypes.typeSimplificationInfo0 5 typ  
 
 /// Printing TAST objects
-module private PrintTastMemberOrVals = 
+module PrintTastMemberOrVals = 
     open PrintTypes
     let private layoutMember denv (v:Val) = 
         let v = mkLocalValRef v
@@ -1328,7 +1356,7 @@ module InfoMemberPrinting =
 //-------------------------------------------------------------------------
 
 /// Printing TAST objects
-module private TastDefinitionPrinting = 
+module TastDefinitionPrinting = 
     open PrintTypes
 
     let layoutExtensionMember denv (v:Val) =
@@ -1736,7 +1764,7 @@ module private TastDefinitionPrinting =
 
 //--------------------------------------------------------------------------
 
-module private InferredSigPrinting = 
+module InferredSigPrinting = 
     open PrintTypes
 
     /// Layout the inferred signature of a compilation unit
@@ -1781,7 +1809,7 @@ module private InferredSigPrinting =
                 // Check if this namespace contains anything interesting
                 if isConcreteNamespace def then 
                     // This is a container namespace. We print the header when we get to the first concrete module.
-                    let headerL = wordL ("namespace " ^ (String.concat "." (innerPath |> List.map fst)))
+                    let headerL = wordL ("namespace " + (String.concat "." (innerPath |> List.map fst)))
                     headerL @@-- basic
                 else
                     // This is a namespace that only contains namespaces. Skipt the header
@@ -1815,7 +1843,7 @@ module private InferredSigPrinting =
 
 //--------------------------------------------------------------------------
 
-module private PrintData = 
+module PrintData = 
     open PrintTypes
 
     /// Nice printing of a subset of expressions, e.g. for refutations in pattern matching

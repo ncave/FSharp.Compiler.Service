@@ -7,6 +7,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System
 open System.Collections.Generic
 open System.IO
@@ -34,11 +37,16 @@ open Microsoft.FSharp.Compiler.InfoReader
 open Microsoft.FSharp.Compiler.SourceCodeServices.ItemDescriptionIcons 
 
 module EnvMisc2 =
+#if FABLE_COMPILER
+    let maxMembers   = 10
+    let dataTipSpinWaitTime = 300
+#else
     let maxMembers   = GetEnvInteger "FCS_MaxMembersInQuickInfo" 10
 
     /// dataTipSpinWaitTime limits how long we block the UI thread while a tooltip pops up next to a selected item in an IntelliSense completion list.
     /// This time appears to be somewhat amortized by the time it takes the VS completion UI to actually bring up the tooltip after selecting an item in the first place.
     let dataTipSpinWaitTime = GetEnvInteger "FCS_ToolTipSpinWaitTime" 300
+#endif
 
 //----------------------------------------------------------------------------
 // Display characteristics of typechecking items
@@ -216,9 +224,13 @@ module internal ItemDescriptionsImpl =
         | _ -> None
 
     /// Work out the source file for an item and fix it up relative to the CCU if it is relative.
-    let fileNameOfItem (g:TcGlobals) qualProjectDir (m:range) h =
+    let fileNameOfItem (g:TcGlobals) (qualProjectDir: string option) (m:range) (h:Item) =
         let file = m.FileName 
         if verbose then dprintf "file stored in metadata is '%s'\n" file
+#if FABLE_COMPILER
+        ignore g; ignore qualProjectDir; ignore h
+        file
+#else
         if not (FileSystem.IsPathRootedShim file) then 
             match ccuOfItem g h with 
             | Some ccu -> 
@@ -227,7 +239,8 @@ module internal ItemDescriptionsImpl =
                 match qualProjectDir with 
                 | None     -> file
                 | Some dir -> Path.Combine(dir, file)
-         else file
+        else file
+#endif
 
     /// Cut long filenames to make them visually appealing 
     let cutFileName s = if String.length s > 40 then String.sub s 0 10 + "..."+String.sub s (String.length s - 27) 27 else s
@@ -536,7 +549,11 @@ module internal ItemDescriptionsImpl =
                   if isAppTy g ty then hash (tcrefOfAppTy g ty).Stamp
                   else 1010
               | Wrap(Item.ILField(ILFieldInfo(_, fld))) -> 
+#if FABLE_COMPILER
+                  (box fld).GetHashCode() // hash on the object identity of the AbstractIL metadata blob for the field
+#else
                   System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode fld // hash on the object identity of the AbstractIL metadata blob for the field
+#endif
               | Wrap(Item.TypeVar (nm,_tp)) -> hash nm
               | Wrap(Item.CustomOperation (_,_,Some minfo)) -> minfo.ComputeHashCode()
               | Wrap(Item.CustomOperation (_,_,None)) -> 1
@@ -1211,8 +1228,9 @@ module internal ItemDescriptionsImpl =
 [<Sealed>]
 type FSharpDeclarationListItem(name, glyph:int, info) =
     let mutable descriptionTextHolder:FSharpToolTipText option = None
+#if !FABLE_COMPILER
     let mutable task = null
-
+#endif
     member decl.Name = name
 
     member decl.DescriptionTextAsync = 
@@ -1235,6 +1253,7 @@ type FSharpDeclarationListItem(name, glyph:int, info) =
         | None ->
             match info with
             | Choice1Of2 _ -> 
+#if !FABLE_COMPILER
                 let work() = 
                     let text = decl.DescriptionTextAsync |> Async.RunSynchronously
                     descriptionTextHolder<-Some text 
@@ -1249,7 +1268,9 @@ type FSharpDeclarationListItem(name, glyph:int, info) =
                 task.Wait EnvMisc2.dataTipSpinWaitTime  |> ignore
                 match descriptionTextHolder with 
                 | Some text -> text
-                | None -> FSharpToolTipText [ FSharpToolTipElement.Single(FSComp.SR.loadingDescription(), FSharpXmlDoc.None) ]
+                | None ->
+#endif
+                    FSharpToolTipText [ FSharpToolTipElement.Single(FSComp.SR.loadingDescription(), FSharpXmlDoc.None) ]
 
             | Choice2Of2 result -> 
                 result
