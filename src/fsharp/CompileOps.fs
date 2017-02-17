@@ -4688,6 +4688,7 @@ type TcImports(tcConfigP:TcConfigProvider, initialResolutions:TcAssemblyResoluti
             with Failure msg ->
                 printfn "Error: %s" msg
 
+        frameworkTcImports.DoRegisterAndImportReferencedAssemblies (tcAltResolutions.GetAssemblyResolutions())
         frameworkTcImports.GetDllInfos() |> List.iter writeMetadata
 
         let writeSigData (ccu:CcuThunk) =
