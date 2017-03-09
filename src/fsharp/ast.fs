@@ -2213,11 +2213,17 @@ module LexbufLocalXmlDocStore =
 /// are used to host mutiple concurrent instances of compilation.
 type NiceNameGenerator() =
 
+#if !FABLE_COMPILER
     let lockObj = obj()
+#endif
     let basicNameCounts = new Dictionary<string,int>(100)
 
     member x.FreshCompilerGeneratedName (name,m:range) =
+#if FABLE_COMPILER
+      (
+#else
       lock lockObj (fun () -> 
+#endif
         let basicName = GetBasicNameOfPossibleCompilerGeneratedName name
         let n = (if basicNameCounts.ContainsKey basicName then basicNameCounts.[basicName] else 0)
         let nm = CompilerGeneratedNameSuffix basicName (string m.StartLine + (match n with 0 -> "" | n -> "-" + string n))
@@ -2225,7 +2231,11 @@ type NiceNameGenerator() =
         nm)
 
     member x.Reset () = 
+#if FABLE_COMPILER
+      (
+#else
       lock lockObj (fun () -> 
+#endif
         basicNameCounts.Clear()
       )
 
@@ -2239,13 +2249,19 @@ type NiceNameGenerator() =
 /// It is made concurrency-safe since a global instance of the type is allocated in tast.fs.
 type StableNiceNameGenerator() =
 
+#if !FABLE_COMPILER
     let lockObj = obj()
+#endif
 
     let names = new Dictionary<(string * int64),string>(100)
     let basicNameCounts = new Dictionary<string,int>(100)
 
     member x.GetUniqueCompilerGeneratedName (name,m:range,uniq) =
+#if FABLE_COMPILER
+      (
+#else
       lock lockObj (fun () -> 
+#endif
         let basicName = GetBasicNameOfPossibleCompilerGeneratedName name
         if names.ContainsKey (basicName,uniq) then
             names.[(basicName,uniq)]
@@ -2258,7 +2274,11 @@ type StableNiceNameGenerator() =
       )
 
     member x.Reset () =
+#if FABLE_COMPILER
+      (
+#else
       lock lockObj (fun () -> 
+#endif
         basicNameCounts.Clear()
         names.Clear()
       )

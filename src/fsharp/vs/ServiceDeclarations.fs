@@ -7,6 +7,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System
 open System.Collections.Generic
 open System.IO
@@ -243,9 +246,13 @@ module internal ItemDescriptionsImpl =
         | _ -> None
 
     /// Work out the source file for an item and fix it up relative to the CCU if it is relative.
-    let fileNameOfItem (g:TcGlobals) qualProjectDir (m:range) h =
+    let fileNameOfItem (g:TcGlobals) (qualProjectDir: string option) (m:range) (h:Item) =
         let file = m.FileName 
         if verbose then dprintf "file stored in metadata is '%s'\n" file
+#if FABLE_COMPILER
+        ignore g; ignore qualProjectDir; ignore h
+        file
+#else
         if not (FileSystem.IsPathRootedShim file) then 
             match ccuOfItem g h with 
             | Some ccu -> 
@@ -254,7 +261,8 @@ module internal ItemDescriptionsImpl =
                 match qualProjectDir with 
                 | None     -> file
                 | Some dir -> Path.Combine(dir, file)
-         else file
+        else file
+#endif
 
     /// Cut long filenames to make them visually appealing 
     let cutFileName s = if String.length s > 40 then String.sub s 0 10 + "..."+String.sub s (String.length s - 27) 27 else s
@@ -567,7 +575,11 @@ module internal ItemDescriptionsImpl =
                   if isAppTy g ty then hash (tcrefOfAppTy g ty).Stamp
                   else 1010
               | Wrap(Item.ILField(ILFieldInfo(_, fld))) -> 
+#if FABLE_COMPILER
+                  (box fld).GetHashCode() // hash on the object identity of the AbstractIL metadata blob for the field
+#else
                   System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode fld // hash on the object identity of the AbstractIL metadata blob for the field
+#endif
               | Wrap(Item.TypeVar (nm,_tp)) -> hash nm
               | Wrap(Item.CustomOperation (_,_,Some minfo)) -> minfo.ComputeHashCode()
               | Wrap(Item.CustomOperation (_,_,None)) -> 1
@@ -1294,13 +1306,18 @@ module internal ItemDescriptionsImpl =
      
 /// An intellisense declaration
 [<Sealed>]
+#if FABLE_COMPILER
+type FSharpDeclarationListItem(name: string, nameInCode: string, glyphMajor: GlyphMajor, glyphMinor: GlyphMinor, _info, isAttribute: bool) =
+#else
 type FSharpDeclarationListItem(name: string, nameInCode: string, glyphMajor: GlyphMajor, glyphMinor: GlyphMinor, info, isAttribute: bool) =
     let mutable descriptionTextHolder:FSharpToolTipText<_> option = None
     let mutable task = null
+#endif
 
     member decl.Name = name
     member decl.NameInCode = nameInCode
 
+#if !FABLE_COMPILER
     member decl.StructuredDescriptionTextAsync = 
             match info with
             | Choice1Of2 (items, infoReader, m, denv, reactor:IReactorOperations, checkAlive) -> 
@@ -1345,6 +1362,9 @@ type FSharpDeclarationListItem(name: string, nameInCode: string, glyphMajor: Gly
                 result
 
     member decl.DescriptionText = decl.StructuredDescriptionText |> Tooltips.ToFSharpToolTipText
+#else //FABLE_COMPILER
+    member decl.DescriptionText = FSharpToolTipText [FSharpStructuredToolTipElement.None] |> Tooltips.ToFSharpToolTipText
+#endif
 
     member decl.Glyph = 6 * int glyphMajor + int glyphMinor
     member decl.GlyphMajor = glyphMajor 
@@ -1366,7 +1386,7 @@ type FSharpDeclarationListInfo(declarations: FSharpDeclarationListItem[]) =
     member self.Glyph i = declarations.[i].Glyph
             
     // Make a 'Declarations' object for a set of selected items
-    static member Create(infoReader:InfoReader, m, denv, items, reactor, checkAlive) = 
+    static member Create(infoReader:InfoReader, m:range, denv:DisplayEnv, items:Item list, reactor:IReactorOperations, checkAlive:(unit -> bool)) = 
         let g = infoReader.g
         let items = items |> RemoveExplicitlySuppressed g
         

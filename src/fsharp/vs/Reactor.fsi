@@ -15,6 +15,8 @@ type internal IReactorOperations =
     /// Enqueue an operation and return immediately. 
     abstract EnqueueOp: description: string * action: (CompilationThreadToken -> unit) -> unit
 
+#if !FABLE_COMPILER
+
 /// Reactor is intended for long-running but interruptible operations, interleaved
 /// with one-off asynchronous operations. 
 ///
@@ -49,3 +51,4 @@ type internal Reactor =
     /// Get the reactor for FSharp.Compiler.dll
     static member Singleton : Reactor
   
+#endif //!FABLE_COMPILER

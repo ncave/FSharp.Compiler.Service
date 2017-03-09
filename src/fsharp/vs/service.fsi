@@ -13,7 +13,9 @@ open System.Collections.Generic
 open Microsoft.FSharp.Compiler.AbstractIL.IL
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.Ast
+#if !FABLE_COMPILER
 open Microsoft.FSharp.Compiler.Driver
+#endif
 open Microsoft.FSharp.Compiler.ErrorLogger
 open Microsoft.FSharp.Compiler.Range
 open Microsoft.FSharp.Compiler.TcGlobals
@@ -172,9 +174,23 @@ type (*internal*) SemanticClassificationType =
     | Enumeration
     | Interface
 
+#if FABLE_COMPILER
+[<Sealed>]
+type internal TypeCheckInfo =
+    member ScopeResolutions: TcResolutions
+    member ScopeSymbolUses: TcSymbolUses
+    member TcGlobals: TcGlobals
+    member TcImports: TcImports
+    member CcuSig: Tast.ModuleOrNamespaceType
+    member ThisCcu: Tast.CcuThunk
+#endif
+
 /// A handle to the results of CheckFileInProject.
 [<Sealed>]
 type FSharpCheckFileResults =
+#if FABLE_COMPILER
+    internal new : errors: FSharpErrorInfo[] * scopeOptX: TypeCheckInfo option * dependencyFiles: string list * builderX: IncrementalBuilder option * reactorOpsX:IReactorOperations -> FSharpCheckFileResults
+#endif
     /// The errors returned by parsing a source file.
     member Errors : FSharpErrorInfo[]
 
@@ -325,6 +341,9 @@ type FSharpCheckFileResults =
 /// A handle to the results of CheckFileInProject.
 [<Sealed>]
 type FSharpCheckProjectResults =
+#if FABLE_COMPILER
+    internal new : keepAssemblyContents: bool * errors: FSharpErrorInfo[] * details:(TcGlobals*TcImports*Tast.CcuThunk*Tast.ModuleOrNamespaceType*TcSymbolUses list*TypeChecker.TopAttribs option*CompileOps.IRawFSharpAssemblyData option * ILAssemblyRef * AccessibilityLogic.AccessorDomain * Tast.TypedImplFile list option * string list) option * reactorOps: IReactorOperations -> FSharpCheckProjectResults
+#endif
     /// The errors returned by processing the project
     member Errors : FSharpErrorInfo[]
 
@@ -384,6 +403,13 @@ type FSharpProjectOptions =
       ExtraProjectInfo : obj option
     }
          
+#if FABLE_COMPILER
+module internal Parser =
+    type TypeCheckAborted = Yes | No of TypeCheckInfo
+    val internal ParseOneFile : ctok:CompilationThreadToken * source:string * matchBracesOnly:bool * reportErrors:bool * mainInputFileName:string * projectSourceFiles:string list * tcConfig:TcConfig -> FSharpErrorInfo [] * (range * range) [] * ParsedInput option * bool
+    val internal TypeCheckOneFile : parseResults:FSharpParseFileResults * source:string * mainInputFileName:string * projectFileName:string * tcConfig:TcConfig * tcGlobals:TcGlobals * tcImports:TcImports * tcState:TcState * loadClosure:LoadClosure option * backgroundDiagnostics:(PhasedDiagnostic * FSharpErrorSeverity) list * reactorOps:IReactorOperations * checkAlive:(unit -> bool) * textSnapshotInfo:obj option -> FSharpErrorInfo [] * TypeCheckAborted * Tast.TypedImplFile list
+
+#else //!FABLE_COMPILER
           
 module internal CompileHelpers =
     val mkCompilationErorHandlers : unit -> List<FSharpErrorInfo> * ErrorLogger * ErrorLoggerProvider
@@ -730,3 +756,4 @@ module PrettyNaming =
     /// All the keywords in the F# langauge 
     val KeywordNames : string list
 
+#endif //!FABLE_COMPILER
