@@ -1,0 +1,198 @@
+<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.6</TargetFramework>
+    <Version>1.0.0-alpha</Version>
+    <DefineConstants>$(DefineConstants);FABLE_COMPILER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_CORHOST_SIGNER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_LINKEDRESOURCES</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_PDB_READER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_PDB_WRITER</DefineConstants>
+    <DefineConstants>$(DefineConstants);FX_NO_WEAKTABLE</DefineConstants>
+    <DefineConstants>$(DefineConstants);NO_COMPILER_BACKEND</DefineConstants>
+    <DefineConstants>$(DefineConstants);NO_INLINE_IL_PARSER</DefineConstants>
+    <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="fsstrings.fs"/>
+    <Compile Include="unicode.fs"/>
+    <Compile Include="adapters.fs"/>
+    <!--<Compile Include="../../assemblyinfo/assemblyinfo.FSharp.Compiler.Service.dll.fs"/>-->
+    <!--<Compile Include="../../assemblyinfo/assemblyinfo.shared.fs"/>-->
+    <Compile Include="../FSharp.Compiler.Service/FSComp.fs"/>
+    <Compile Include="../FSharp.Compiler.Service/FSIstrings.fs"/>
+    <!--<Compile Include="../../utils/reshapedreflection.fs"/>-->
+    <Compile Include="../../utils/sformat.fsi"/>
+    <Compile Include="../../utils/sformat.fs"/>
+    <!--<Compile Include="../sr.fsi"/>-->
+    <!--<Compile Include="../sr.fs"/>-->
+    <Compile Include="../../utils/prim-lexing.fsi"/>
+    <Compile Include="../../utils/prim-lexing.fs"/>
+    <Compile Include="../../utils/prim-parsing.fsi"/>
+    <Compile Include="../../utils/prim-parsing.fs"/>
+    <Compile Include="../../utils/ResizeArray.fsi"/>
+    <Compile Include="../../utils/ResizeArray.fs"/>
+    <Compile Include="../../utils/HashMultiMap.fsi"/>
+    <Compile Include="../../utils/HashMultiMap.fs"/>
+    <Compile Include="../../utils/EditDistance.fs"/>
+    <Compile Include="../../utils/TaggedCollections.fsi"/>
+    <Compile Include="../../utils/TaggedCollections.fs"/>
+    <Compile Include="../QueueList.fs"/>
+    <Compile Include="../../absil/ildiag.fsi"/>
+    <Compile Include="../../absil/ildiag.fs"/>
+    <Compile Include="../../absil/illib.fs"/>
+    <Compile Include="../../utils/filename.fsi"/>
+    <Compile Include="../../utils/filename.fs"/>
+    <Compile Include="../../absil/bytes.fsi"/>
+    <Compile Include="../../absil/bytes.fs"/>
+    <Compile Include="../../absil/zmap.fsi"/>
+    <Compile Include="../../absil/zmap.fs"/>
+    <Compile Include="../../absil/zset.fsi"/>
+    <Compile Include="../../absil/zset.fs"/>
+    <Compile Include="../lib.fs"/>
+    <Compile Include="../InternalCollections.fsi"/>
+    <Compile Include="../InternalCollections.fs"/>
+    <Compile Include="../rational.fsi"/>
+    <Compile Include="../rational.fs"/>
+    <Compile Include="../range.fsi"/>
+    <Compile Include="../range.fs"/>
+    <Compile Include="../ErrorLogger.fs"/>
+    <Compile Include="../ErrorResolutionHints.fs"/>
+    <Compile Include="../ReferenceResolver.fs"/>
+    <Compile Include="../../absil/il.fsi"/>
+    <Compile Include="../../absil/il.fs"/>
+    <Compile Include="../../absil/ilx.fsi"/>
+    <Compile Include="../../absil/ilx.fs"/>
+    <!--<Compile Include="../../absil/ilascii.fsi"/>-->
+    <!--<Compile Include="../../absil/ilascii.fs"/>-->
+    <!--<Compile Include="../../absil/ilprint.fsi"/>-->
+    <!--<Compile Include="../../absil/ilprint.fs"/>-->
+    <Compile Include="../../absil/ilmorph.fsi"/>
+    <Compile Include="../../absil/ilmorph.fs"/>
+    <!--<Compile Include="../../absil/ilsign.fs"/>-->
+    <!--<Compile Include="../../absil/ilsupp.fsi"/>-->
+    <!--<Compile Include="../../absil/ilsupp.fs"/>-->
+    <!--<Compile Include="ilpars.fs"/>-->
+    <!--<Compile Include="illex.fs"/>-->
+    <Compile Include="../../absil/ilbinary.fsi"/>
+    <Compile Include="../../absil/ilbinary.fs"/>
+    <Compile Include="../../absil/ilread.fsi"/>
+    <Compile Include="../../absil/ilread.fs"/>
+    <!--<Compile Include="../../absil/ilwritepdb.fsi"/>-->
+    <!--<Compile Include="../../absil/ilwritepdb.fs"/>-->
+    <!--<Compile Include="../../absil/ilwrite.fsi"/>-->
+    <!--<Compile Include="../../absil/ilwrite.fs"/>-->
+    <!--<Compile Include="../../absil/ilreflect.fs"/>-->
+    <!--<Compile Include="../../utils/CompilerLocationUtils.fs"/>-->
+    <Compile Include="../PrettyNaming.fs"/>
+    <Compile Include="../../ilx/ilxsettings.fs"/>
+    <Compile Include="../../ilx/EraseClosures.fsi"/>
+    <Compile Include="../../ilx/EraseClosures.fs"/>
+    <Compile Include="../../ilx/EraseUnions.fsi"/>
+    <Compile Include="../../ilx/EraseUnions.fs"/>
+    <Compile Include="../UnicodeLexing.fsi"/>
+    <Compile Include="../UnicodeLexing.fs"/>
+    <Compile Include="../layout.fsi"/>
+    <Compile Include="../layout.fs"/>
+    <Compile Include="../ast.fs"/>
+    <Compile Include="../FSharp.Compiler.Service/pppars.fs"/>
+    <Compile Include="../FSharp.Compiler.Service/pars.fs"/>
+    <Compile Include="../lexhelp.fsi"/>
+    <Compile Include="../lexhelp.fs"/>
+    <Compile Include="../FSharp.Compiler.Service/pplex.fs"/>
+    <Compile Include="../FSharp.Compiler.Service/lex.fs"/>
+    <Compile Include="../LexFilter.fs"/>
+    <!--<Compile Include="../tainted.fsi"/>-->
+    <!--<Compile Include="../tainted.fs"/>-->
+    <!--<Compile Include="../ExtensionTyping.fsi"/>-->
+    <!--<Compile Include="../ExtensionTyping.fs"/>-->
+    <Compile Include="../QuotationPickler.fsi"/>
+    <Compile Include="../QuotationPickler.fs"/>
+    <Compile Include="../tast.fs"/>
+    <Compile Include="../TcGlobals.fs"/>
+    <Compile Include="../TastOps.fsi"/>
+    <Compile Include="../TastOps.fs"/>
+    <Compile Include="../TastPickle.fsi"/>
+    <Compile Include="../TastPickle.fs"/>
+    <Compile Include="../import.fsi"/>
+    <Compile Include="../import.fs"/>
+    <Compile Include="../infos.fs"/>
+    <Compile Include="../AccessibilityLogic.fs"/>
+    <Compile Include="../AttributeChecking.fs"/>
+    <Compile Include="../InfoReader.fs"/>
+    <Compile Include="../NicePrint.fs"/>
+    <Compile Include="../AugmentWithHashCompare.fsi"/>
+    <Compile Include="../AugmentWithHashCompare.fs"/>
+    <Compile Include="../NameResolution.fsi"/>
+    <Compile Include="../NameResolution.fs"/>
+    <Compile Include="../TypeRelations.fs"/>
+    <Compile Include="../SignatureConformance.fs"/>
+    <Compile Include="../MethodOverrides.fs"/>
+    <Compile Include="../MethodCalls.fs"/>
+    <Compile Include="../PatternMatchCompilation.fsi"/>
+    <Compile Include="../PatternMatchCompilation.fs"/>
+    <Compile Include="../ConstraintSolver.fsi"/>
+    <Compile Include="../ConstraintSolver.fs"/>
+    <Compile Include="../CheckFormatStrings.fsi"/>
+    <Compile Include="../CheckFormatStrings.fs"/>
+    <Compile Include="../FindUnsolved.fs"/>
+    <Compile Include="../QuotationTranslator.fsi"/>
+    <Compile Include="../QuotationTranslator.fs"/>
+    <Compile Include="../PostInferenceChecks.fsi"/>
+    <Compile Include="../PostInferenceChecks.fs"/>
+    <Compile Include="../TypeChecker.fsi"/>
+    <Compile Include="../TypeChecker.fs"/>
+    <Compile Include="../Optimizer.fsi"/>
+    <Compile Include="../Optimizer.fs"/>
+    <!--<Compile Include="../DetupleArgs.fsi"/>-->
+    <!--<Compile Include="../DetupleArgs.fs"/>-->
+    <!--<Compile Include="../InnerLambdasToTopLevelFuncs.fsi"/>-->
+    <!--<Compile Include="../InnerLambdasToTopLevelFuncs.fs"/>-->
+    <!--<Compile Include="../LowerCallsAndSeqs.fs"/>-->
+    <!--<Compile Include="../autobox.fs"/>-->
+    <!--<Compile Include="../IlxGen.fsi"/>-->
+    <!--<Compile Include="../IlxGen.fs"/>-->
+    <!--<Compile Include="../CompileOps.fsi"/>-->
+    <Compile Include="../CompileOps.fs"/>
+    <!--<Compile Include="../CompileOptions.fsi"/>-->
+    <!--<Compile Include="../CompileOptions.fs"/>-->
+    <!--<Compile Include="../fsc.fsi"/>-->
+    <!--<Compile Include="../fsc.fs"/>-->
+    <Compile Include="../vs/IncrementalBuild.fsi"/>
+    <Compile Include="../vs/IncrementalBuild.fs"/>
+    <Compile Include="../vs/Reactor.fsi"/>
+    <Compile Include="../vs/Reactor.fs"/>
+    <Compile Include="../vs/ServiceConstants.fs"/>
+    <Compile Include="../vs/ServiceDeclarations.fsi"/>
+    <Compile Include="../vs/ServiceDeclarations.fs"/>
+    <Compile Include="../vs/Symbols.fsi"/>
+    <Compile Include="../vs/Symbols.fs"/>
+    <Compile Include="../vs/Exprs.fsi"/>
+    <Compile Include="../vs/Exprs.fs"/>
+    <Compile Include="../vs/ServiceLexing.fsi"/>
+    <Compile Include="../vs/ServiceLexing.fs"/>
+    <Compile Include="../vs/ServiceParseTreeWalk.fs"/>
+    <Compile Include="../vs/ServiceNavigation.fsi"/>
+    <Compile Include="../vs/ServiceNavigation.fs"/>
+    <Compile Include="../vs/ServiceParamInfoLocations.fsi"/>
+    <Compile Include="../vs/ServiceParamInfoLocations.fs"/>
+    <Compile Include="../vs/ServiceUntypedParse.fsi"/>
+    <Compile Include="../vs/ServiceUntypedParse.fs"/>
+    <!--<Compile Include="../../utils/reshapedmsbuild.fs"/>-->
+    <!--<Compile Include="../MSBuildReferenceResolver.fs"/>-->
+    <Compile Include="../vs/service.fsi"/>
+    <Compile Include="../vs/service.fs"/>
+    <!--<Compile Include="../vs/SimpleServices.fsi"/>-->
+    <!--<Compile Include="../vs/SimpleServices.fs"/>-->
+    <!--<Compile Include="../fsi/fsi.fsi"/>-->
+    <!--<Compile Include="../fsi/fsi.fs"/>-->
+    <Compile Include="service_shim.fs"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
+    <PackageReference Include="FSharp.Core" Version="4.1.*" />
+  </ItemGroup>
+
+</Project>
