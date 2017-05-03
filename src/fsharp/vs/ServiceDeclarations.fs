@@ -7,6 +7,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System
 open System.Collections.Generic
 open System.IO
@@ -262,9 +265,13 @@ module internal ItemDescriptionsImpl =
         | _ -> None
 
     /// Work out the source file for an item and fix it up relative to the CCU if it is relative.
-    let fileNameOfItem (g:TcGlobals) qualProjectDir (m:range) h =
+    let fileNameOfItem (g:TcGlobals) (qualProjectDir: string option) (m:range) (h:Item) =
         let file = m.FileName 
         if verbose then dprintf "file stored in metadata is '%s'\n" file
+#if FABLE_COMPILER
+        ignore g; ignore qualProjectDir; ignore h
+        file
+#else
         if not (FileSystem.IsPathRootedShim file) then 
             match ccuOfItem g h with 
             | Some ccu -> 
@@ -273,7 +280,8 @@ module internal ItemDescriptionsImpl =
                 match qualProjectDir with 
                 | None     -> file
                 | Some dir -> Path.Combine(dir, file)
-         else file
+        else file
+#endif
 
     /// Cut long filenames to make them visually appealing 
     let cutFileName s = if String.length s > 40 then String.sub s 0 10 + "..."+String.sub s (String.length s - 27) 27 else s
@@ -600,7 +608,11 @@ module internal ItemDescriptionsImpl =
                   if isAppTy g ty then hash (tcrefOfAppTy g ty).Stamp
                   else 1010
               | Wrap(Item.ILField(ILFieldInfo(_, fld))) -> 
+#if FABLE_COMPILER
+                  (box fld).GetHashCode() // hash on the object identity of the AbstractIL metadata blob for the field
+#else
                   System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode fld // hash on the object identity of the AbstractIL metadata blob for the field
+#endif
               | Wrap(Item.TypeVar (nm,_tp)) -> hash nm
               | Wrap(Item.CustomOperation (_,_,Some minfo)) -> minfo.ComputeHashCode()
               | Wrap(Item.CustomOperation (_,_,None)) -> 1
@@ -1384,6 +1396,10 @@ type FSharpAccessibility internal (a:Accessibility, ?isProtected) =
         | _ when List.forall isInternalCompPath p  -> Internal 
         | _ -> Private
 
+#if FABLE_COMPILER
+    new (a, _) = FSharpAccessibility(a)
+#endif
+
     member __.IsPublic = not isProtected && match a with Public -> true | _ -> false
 
     member __.IsPrivate = not isProtected && match a with Private -> true | _ -> false
@@ -1401,17 +1417,20 @@ type FSharpAccessibility internal (a:Accessibility, ?isProtected) =
 
 /// An intellisense declaration
 [<Sealed>]
-type FSharpDeclarationListItem(name: string, nameInCode: string, fullName: string, glyph: FSharpGlyph, info, accessibility: FSharpAccessibility option,
+type FSharpDeclarationListItem(name: string, nameInCode: string, fullName: string, glyph: FSharpGlyph, _info, accessibility: FSharpAccessibility option,
                                kind: CompletionItemKind, isOwnMember: bool, priority: int, isResolved: bool, namespaceToOpen: string option) =
 
+#if !FABLE_COMPILER
     let mutable descriptionTextHolder: FSharpToolTipText<_> option = None
     let mutable task = null
+#endif
 
     member decl.Name = name
     member decl.NameInCode = nameInCode
 
+#if !FABLE_COMPILER
     member decl.StructuredDescriptionTextAsync = 
-            match info with
+            match _info with
             | Choice1Of2 (items: CompletionItem list, infoReader, m, denv, reactor:IReactorOperations, checkAlive) -> 
                     // reactor causes the lambda to execute on the background compiler thread, through the Reactor
                     reactor.EnqueueAndAwaitOpAsync ("StructuredDescriptionTextAsync", fun ctok -> 
@@ -1436,7 +1455,7 @@ type FSharpDeclarationListItem(name: string, nameInCode: string, fullName: strin
         match descriptionTextHolder with
         | Some descriptionText -> descriptionText
         | None ->
-            match info with
+            match _info with
             | Choice1Of2 _ -> 
                 // The dataTipSpinWaitTime limits how long we block the UI thread while a tooltip pops up next to a selected item in an IntelliSense completion list.
                 // This time appears to be somewhat amortized by the time it takes the VS completion UI to actually bring up the tooltip after selecting an item in the first place.
@@ -1458,6 +1477,9 @@ type FSharpDeclarationListItem(name: string, nameInCode: string, fullName: strin
        )
        (fun err -> FSharpToolTipText [FSharpStructuredToolTipElement.CompositionError err])
     member decl.DescriptionText = decl.StructuredDescriptionText |> Tooltips.ToFSharpToolTipText
+#else //FABLE_COMPILER
+    member decl.DescriptionText = FSharpToolTipText [FSharpStructuredToolTipElement.None] |> Tooltips.ToFSharpToolTipText
+#endif
     member decl.Glyph = glyph 
     member decl.Accessibility = accessibility
     member decl.Kind = kind
@@ -1475,7 +1497,7 @@ type FSharpDeclarationListInfo(declarations: FSharpDeclarationListItem[], isForT
     member self.IsError = isError
 
     // Make a 'Declarations' object for a set of selected items
-    static member Create(infoReader:InfoReader, m, denv, getAccessibility, items: CompletionItem list, reactor, currentNamespaceOrModule: string[] option, isAttributeApplicationContext: bool, checkAlive) = 
+    static member Create(infoReader:InfoReader, m:range, denv:DisplayEnv, getAccessibility:(Item -> FSharpAccessibility option), items: CompletionItem list, reactor:IReactorOperations, currentNamespaceOrModule: string[] option, isAttributeApplicationContext: bool, checkAlive:(unit -> bool)) = 
         let g = infoReader.g
         let isForType = items |> List.exists (fun x -> x.Type.IsSome)
         let items = items |> ItemDescriptionsImpl.RemoveExplicitlySuppressedCompletionItems g

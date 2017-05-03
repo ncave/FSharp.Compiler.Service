@@ -303,18 +303,18 @@ let isDotnetSDKInstalled =
         _ -> false
 
 let assertExitCodeZero x = if x = 0 then () else failwithf "Command failed with exit code %i" x
-let runCmdIn mono workDir exe = Printf.ksprintf (fun args ->
-    if mono
-    then
+let runCmdIn workDir exe = Printf.ksprintf (fun args ->
+#if MONO
         printfn "mono %s/%s %s" workDir exe args
         Shell.Exec("mono", sprintf "%s %s" exe args, workDir)
         |> assertExitCodeZero
-    else
+#else
         printfn "%s/%s %s" workDir exe args
         Shell.Exec(exe, args, workDir)
         |> assertExitCodeZero
+#endif
 )
-let run mono exe = runCmdIn mono "." exe
+let run exe = runCmdIn "." exe
 
 Target "CodeGen.NetCore" (fun _ ->
     let lexArgs = "--lexlib Internal.Utilities.Text.Lexing"
@@ -327,35 +327,51 @@ Target "CodeGen.NetCore" (fun _ ->
     let open3 = "--open Microsoft.FSharp.Compiler"
 
     // restore all the required tools, declared in each fsproj
-    run false "dotnet" "restore %s" netcoresln
-    run false "dotnet" "restore %s" "tools.fsproj"
+    run "dotnet" "restore %s" netcoresln
+    run "dotnet" "restore %s" "tools.fsproj"
 
     // run tools
-    let toolDir = "packages/FsLexYacc/build"
-    let fcsNetcore = "src/fsharp/FSharp.Compiler.Service/FSharp.Compiler.Service.netcore.fsproj"
-    let fsLex fsl out = runCmdIn isMono "." (sprintf "%s/fslex.exe" toolDir) "%s --unicode %s -o %s" fsl lexArgs out
-    let fsYacc fsy out m o = runCmdIn isMono "." (sprintf "%s/fsyacc.exe" toolDir) "%s %s %s %s %s -o %s" fsy lexArgs yaccArgs m o out
+#if MONO
+    let toolDir = "../../../packages/FsLexYacc/build/"
+#else
+    let toolDir = "packages/FsLexYacc/build/"
+#endif
+    let workDir = "src/fsharp/FSharp.Compiler.Service/"
+    let fsLex fsl out = run (toolDir + "fslex.exe") "%s --unicode %s -o %s%s" fsl lexArgs workDir out
+    let fsYacc fsy out m o = run (toolDir + "fsyacc.exe") "%s %s %s %s %s -o %s%s" fsy lexArgs yaccArgs m o workDir out
 
-    run false "dotnet" "fssrgen src/fsharp/FSComp.txt src/fsharp/FSharp.Compiler.Service/FSComp.fs src/fsharp/FSharp.Compiler.Service/FSComp.resx"
-    run false "dotnet" "fssrgen src/fsharp/fsi/FSIstrings.txt src/fsharp/FSharp.Compiler.Service/FSIstrings.fs src/fsharp/FSharp.Compiler.Service/FSIstrings.resx"
-    fsLex "src/fsharp/lex.fsl" "src/fsharp/FSharp.Compiler.Service/lex.fs"
-    fsLex "src/fsharp/pplex.fsl" "src/fsharp/FSharp.Compiler.Service/pplex.fs"
-    fsLex "src/absil/illex.fsl" "src/fsharp/FSharp.Compiler.Service/illex.fs"
-    fsYacc "src/absil/ilpars.fsy" "src/fsharp/FSharp.Compiler.Service/ilpars.fs" module1 open1
-    fsYacc "src/fsharp/pars.fsy" "src/fsharp/FSharp.Compiler.Service/pars.fs" module2 open2
-    fsYacc "src/fsharp/pppars.fsy" "src/fsharp/FSharp.Compiler.Service/pppars.fs" module3 open3
+#if FABLE_COMPILER
+    run "dotnet" "fssrgen src/fsharp/FSComp.txt %sFSComp.fs" workDir
+    run "dotnet" "fssrgen src/fsharp/fsi/FSIstrings.txt %sFSIstrings.fs" workDir
+#else
+    run "dotnet" "fssrgen src/fsharp/FSComp.txt %sFSComp.fs %sFSComp.resx" workDir workDir
+    run "dotnet" "fssrgen src/fsharp/fsi/FSIstrings.txt %sFSIstrings.fs %sFSIstrings.resx" workDir workDir
+#endif
+    fsLex "src/fsharp/lex.fsl" "lex.fs"
+    fsLex "src/fsharp/pplex.fsl" "pplex.fs"
+    fsLex "src/absil/illex.fsl" "illex.fs"
+    fsYacc "src/absil/ilpars.fsy" "ilpars.fs" module1 open1
+    fsYacc "src/fsharp/pars.fsy" "pars.fs" module2 open2
+    fsYacc "src/fsharp/pppars.fsy" "pppars.fs" module3 open3
+
+#if FABLE_COMPILER
+    // comments the #line directive as it is not supported by Fable
+    ["lex.fs"; "pplex.fs"; "illex.fs"; "ilpars.fs"; "pars.fs"; "pppars.fs"]
+    |> Seq.map (fun fileName -> IO.Path.Combine (workDir, fileName))
+    |> RegexReplaceInFilesWithEncoding @"# (?=\d)" "//# " Text.Encoding.UTF8
+#endif
 )
 
 Target "Build.NetCore" (fun _ ->
-    run false "dotnet" "pack %s -v n -c Release" netcoresln
+    run "dotnet" "pack %s -v n -c Release" netcoresln
 )
 
 Target "Build.NetCore.Debug" (fun _ ->
-    run false "dotnet" "pack %s -v n -c Debug" netcoresln
+    run "dotnet" "pack %s -v n -c Debug" netcoresln
 )
 
 Target "RunTests.NetCore" (fun _ ->
-    run false "dotnet" "run -p tests/service/FSharp.Compiler.Service.Tests.netcore.fsproj -c Release -- --result:TestResults.NetCore.xml;format=nunit3"
+    run "dotnet" "run -p tests/service/FSharp.Compiler.Service.Tests.netcore.fsproj -c Release -- --result:TestResults.NetCore.xml;format=nunit3"
 )
 
 
@@ -364,24 +380,24 @@ Target "Nuget.AddNetCore" (fun _ ->
     do
         let nupkg = sprintf "%s/FSharp.Compiler.Service.%s.nupkg" releaseDir release.AssemblyVersion
         let netcoreNupkg = sprintf "src/fsharp/FSharp.Compiler.Service/bin/Release/FSharp.Compiler.Service.%s.nupkg" release.AssemblyVersion
-        runCmdIn false "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
+        runCmdIn "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
 
     do
         let nupkg = sprintf "%s/FSharp.Compiler.Service.ProjectCracker.%s.nupkg" releaseDir release.AssemblyVersion
         let netcoreNupkg = sprintf "src/fsharp/FSharp.Compiler.Service.ProjectCracker/bin/Release/FSharp.Compiler.Service.ProjectCracker.%s.nupkg" release.AssemblyVersion
-        runCmdIn false "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
+        runCmdIn "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
 )
 
 Target "Nuget.AddNetCore.Debug" (fun _ ->
     do
         let nupkg = sprintf "%s/FSharp.Compiler.Service.%s.nupkg" debugDir nugetDebugVersion
         let netcoreNupkg = sprintf "src/fsharp/FSharp.Compiler.Service/bin/Debug/FSharp.Compiler.Service.%s.nupkg" release.AssemblyVersion
-        runCmdIn false "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
+        runCmdIn "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
 
     do
         let nupkg = sprintf "%s/FSharp.Compiler.Service.ProjectCracker.%s.nupkg" debugDir nugetDebugVersion
         let netcoreNupkg = sprintf "src/fsharp/FSharp.Compiler.Service.ProjectCracker/bin/Debug/FSharp.Compiler.Service.ProjectCracker.%s.nupkg" release.AssemblyVersion
-        runCmdIn false "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
+        runCmdIn "." "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
 )
 
 // --------------------------------------------------------------------------------------

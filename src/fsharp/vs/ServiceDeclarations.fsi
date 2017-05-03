@@ -7,6 +7,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.Range
 open Microsoft.FSharp.Compiler.TcGlobals 
@@ -104,6 +107,7 @@ type FSharpDeclarationListItem =
     /// Get the description text for the declaration. Computing this property may require using compiler
     /// resources and may trigger execution of a type provider method to retrieve documentation.
     ///
+#if !FABLE_COMPILER
     /// May return "Loading..." if timeout occurs
     member StructuredDescriptionText : FSharpStructuredToolTipText
     member DescriptionText : FSharpToolTipText
@@ -111,6 +115,7 @@ type FSharpDeclarationListItem =
     /// Get the description text, asynchronously.  Never returns "Loading...".
     member StructuredDescriptionTextAsync : Async<FSharpStructuredToolTipText>
     member DescriptionTextAsync : Async<FSharpToolTipText>
+#endif
     member Glyph : FSharpGlyph
     member Accessibility : FSharpAccessibility option
     member Kind : CompletionItemKind

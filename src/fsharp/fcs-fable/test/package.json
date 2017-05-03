@@ -1,0 +1,24 @@
+{
+  "name": "fcs-fable",
+  "version": "1.0.0",
+  "description": "FCS-Fable",
+  "scripts": {
+    "build": "webpack -p",
+    "rollup": "rollup -c"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "fable-core": "^1.0.0-narumi-914"
+  },
+  "devDependencies": {
+    "babel-core": "^6.24.1",
+    "babel-loader": "^6.4.1",
+    "babel-preset-es2015": "^6.24.1",
+    "fable-loader": "^1.0.0-narumi-912",
+    "rollup": "^0.41.6",
+    "rollup-plugin-fable": "^1.0.3",
+    "webpack": "^2.4.1"
+  }
+}

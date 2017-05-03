@@ -16,7 +16,7 @@
 
 #nowarn "52" // The value has been copied to ensure the original is not mutated by this operation
 
-#if COMPILER
+#if COMPILER || FABLE_COMPILER
 // FSharp.Compiler-proto.dll:
 // FSharp.Compiler.dll:
 namespace Internal.Utilities.StructuredFormat
@@ -351,6 +351,8 @@ namespace Microsoft.FSharp.Text.StructuredFormat
 
         let unfoldL itemL project z maxLength = boundedUnfoldL  itemL project (fun _ -> false) z maxLength
           
+#if !FABLE_COMPILER
+
     /// These are a typical set of options used to control structured formatting.
     [<NoEquality; NoComparison>]
 #if COMPILER_SERVICE
@@ -1403,3 +1405,5 @@ namespace Microsoft.FSharp.Text.StructuredFormat
         /// Called 
         let fsi_any_to_layout opts x = anyL ShowTopLevelBinding BindingFlags.Public opts x
 #endif  
+
+#endif //!FABLE_COMPILER

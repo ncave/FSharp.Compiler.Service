@@ -16,7 +16,9 @@ open Microsoft.FSharp.Compiler.AbstractIL.IL
 open Microsoft.FSharp.Compiler.AbstractIL.Internal
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library 
 open Microsoft.FSharp.Compiler.CompileOps
+#if !FABLE_COMPILER
 open Microsoft.FSharp.Compiler.CompileOptions
+#endif
 open Microsoft.FSharp.Compiler.Ast
 open Microsoft.FSharp.Compiler.ErrorLogger
 open Microsoft.FSharp.Compiler.TcGlobals
@@ -26,6 +28,7 @@ open Microsoft.FSharp.Compiler.Range
 open Internal.Utilities
 open Internal.Utilities.Collections
 
+#if !FABLE_COMPILER
 
 [<AutoOpen>]
 module internal IncrementalBuild =
@@ -967,6 +970,7 @@ module internal IncrementalBuild =
         member b.GetInitialPartialBuild(inputs:BuildInput list) =
             ToBound(ToBuild outputs,inputs)   
 
+#endif //!FABLE_COMPILER
 
 [<RequireQualifiedAccess>]
 type FSharpErrorSeverity = 
@@ -1009,7 +1013,6 @@ type FSharpErrorInfo(fileName, s:pos, e:pos, severity: FSharpErrorSeverity, mess
         else
             let r = if schange then r.WithStart(mkPos startline lastLength) else r
             if echange then r.WithEnd(mkPos  endline (1 + lastLength)) else r
-
     
 /// Use to reset error and warning handlers            
 [<Sealed>]
@@ -1055,14 +1058,21 @@ type ErrorScope()  =
             | Some text -> err text
             | None -> err ""
 
-    static member ProtectWithDefault m f dflt = 
+    static member ProtectWithDefault<'a> (m:range) (f:unit->'a) dflt = 
         ErrorScope.Protect m f (fun _ -> dflt)
 
-    static member ProtectAndDiscard m f = 
+    static member ProtectAndDiscard (m:range) (f:unit->unit) = 
         ErrorScope.Protect m f (fun _ -> ())
       
 
-        
+#if FABLE_COMPILER
+// stub
+type IncrementalBuilder() =
+    member x.IncrementUsageCount () = { new System.IDisposable with member x.Dispose() = () }
+    member x.IsAlive = false
+
+#else //!FABLE_COMPILER
+
 
 // Record the most recent IncrementalBuilder events, so we can more easily unittest/debug the 
 // 'incremental' behavior of the product.
@@ -1931,3 +1941,4 @@ type IncrementalBuilder(tcGlobals,frameworkTcImports, nonFrameworkAssemblyInputs
 
     member builder.IsBeingKeptAliveApartFromCacheEntry = (referenceCount >= 2)
 
+#endif //!FABLE_COMPILER

@@ -45,6 +45,15 @@ type internal ErrorScope =
     static member ProtectWithDefault<'a> : range -> (unit -> 'a) -> 'a -> 'a
     static member ProtectAndDiscard : range -> (unit -> unit) -> unit
 
+#if FABLE_COMPILER
+// stub
+[<Class>]
+type internal IncrementalBuilder = 
+      member IncrementUsageCount : unit -> IDisposable
+      member IsAlive : bool
+
+#else //!FABLE_COMPILER
+
 /// Lookup the global static cache for building the FrameworkTcImports
 type internal FrameworkImportsCache = 
     new : size: int -> FrameworkImportsCache
@@ -290,3 +299,5 @@ module internal IncrementalBuild =
 type internal CompilationGlobalsScope =
     new : ErrorLogger * BuildPhase -> CompilationGlobalsScope
     interface IDisposable
+
+#endif //!FABLE_COMPILER

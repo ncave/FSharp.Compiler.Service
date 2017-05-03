@@ -14,7 +14,7 @@
 // Note no layout objects are ever transferred between the above implementations, and in 
 // all 4 cases the layout types are really different types.
 
-#if COMPILER
+#if COMPILER || FABLE_COMPILER
 // FSharp.Compiler-proto.dll:
 // FSharp.Compiler.dll:
 namespace Internal.Utilities.StructuredFormat
@@ -282,6 +282,8 @@ namespace Microsoft.FSharp.Text.StructuredFormat
         /// If reach maxLength (before exhausting) then truncate.
         val unfoldL : selector:('T -> Layout) -> folder:('State -> ('T * 'State) option) -> state:'State -> count:int -> Layout list
 
+#if !FABLE_COMPILER
+
     /// A record of options to control structural formatting.
     /// For F# Interactive properties matching those of this value can be accessed via the 'fsi'
     /// value.
@@ -382,3 +384,5 @@ namespace Microsoft.FSharp.Text.StructuredFormat
 #if COMPILER
         val fsi_any_to_layout : options:FormatOptions -> value:'T * Type -> Layout
 #endif  
+
+#endif //!FABLE_COMPILER
