@@ -65,11 +65,11 @@ let main argv =
     printfn "Typed AST:"
     projectResults.AssemblyContents.ImplementationFiles
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
-(*
+
     let inputLines = source.Split('\n')
     async {
         // Get tool tip at the specified location
-        let! tip = typeCheckResults.GetToolTipTextAlternate(4, 7, inputLines.[3], ["foo"], FSharpTokenTag.IDENT)
+        let! tip = typeCheckResults.GetToolTipTextAlternate(3, 7, inputLines.[2], ["foo"], FSharpTokenTag.IDENT)
         (sprintf "%A" tip).Replace("\n","") |> printfn "---> ToolTip Text = %A" // should be "FSharpToolTipText [...]"
     } |> Async.StartImmediate
     async {
@@ -77,5 +77,5 @@ let main argv =
         let! decls = typeCheckResults.GetDeclarationListInfo(Some parseResults, 6, 25, inputLines.[5], [], "msg", (fun _ -> []), fun _ -> false)
         [ for item in decls.Items -> item.Name ] |> printfn "---> AutoComplete = %A" // should be string methods
     } |> Async.StartImmediate
-*)
+
     0
