@@ -27,12 +27,8 @@ let posColumnMask  = mask32 0 columnBitCount
 let lineColumnMask = mask32 columnBitCount lineBitCount
 let inline (lsr)  (x:int) (y:int)  = int32 (uint32 x >>> y)
 
-#if FABLE_COMPILER
-[<Struct>]
-#else
 [<Struct; CustomEquality; NoComparison>]
 [<System.Diagnostics.DebuggerDisplay("{Line},{Column}")>]
-#endif
 type pos(code:int32) =
     new (l,c) = 
         let l = max 0 l 
@@ -49,10 +45,9 @@ type pos(code:int32) =
     static member Decode (code:int32) : pos = pos code
 #if FABLE_COMPILER
     override p.ToString() = sprintf "(%d,%d)" p.Line p.Column
-#else
+#endif
     override p.Equals(obj) = match obj with :? pos as p2 -> code = p2.Encoding | _ -> false
     override p.GetHashCode() = hash code
-#endif
 
 [<Literal>]
 let fileIndexBitCount = 14
@@ -159,7 +154,8 @@ let fileIndexMask =   0b0011111111111111
 [<Literal>]
 let isSyntheticMask = 0b0100000000000000
 
-[<Struct>]
+[<Struct; CustomEquality; NoComparison>]
+[<System.Diagnostics.DebuggerDisplay("({StartLine},{StartColumn}-{EndLine},{EndColumn}) {FileName} IsSynthetic={IsSynthetic}")>]
 type range(code:int, b:pos, e:pos) =
     static member Zero = range(0, pos(0), pos(0))
     member r.StartLine   = b.Line
@@ -176,6 +172,10 @@ type range(code:int, b:pos, e:pos) =
     member r.MakeSynthetic() = range(code ||| isSyntheticMask, b, e)
     override r.ToString() = sprintf "%s (%d,%d--%d,%d) IsSynthetic=%b" r.FileName r.StartLine r.StartColumn r.EndLine r.EndColumn r.IsSynthetic
     member r.ToShortString() = sprintf "(%d,%d--%d,%d)" r.StartLine r.StartColumn r.EndLine r.EndColumn
+    member r.Code = code
+    override r.Equals(obj) = match obj with :? range as r2 -> r.Code = r2.Code && r.Start = r2.Start && r.End = r2.End | _ -> false
+    override r.GetHashCode() = hash r
+
 #else
 [<Struct; CustomEquality; NoComparison>]
 [<System.Diagnostics.DebuggerDisplay("({StartLine},{StartColumn}-{EndLine},{EndColumn}) {FileName} IsSynthetic={IsSynthetic}")>]

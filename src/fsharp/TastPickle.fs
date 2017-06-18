@@ -2212,13 +2212,7 @@ and u_const st =
     | 14 -> u_string st        |> Const.String
     | 15 -> Const.Unit
     | 16 -> Const.Zero
-    | 17 -> u_array u_int32 st |> (fun bits ->
-        Const.Decimal (
-#if FABLE_COMPILER
-            System.Decimal.FromBits(bits)))
-#else
-            new System.Decimal(bits)))
-#endif
+    | 17 -> u_array u_int32 st |> (fun bits -> Const.Decimal (new System.Decimal(bits)))
     | _ -> ufailwith st "u_const" 
 
 

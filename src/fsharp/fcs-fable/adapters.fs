@@ -136,16 +136,6 @@ module System =
         let ToUpperInvariant (c: char) = ToUpper(c)
         let ToLowerInvariant (c: char) = ToLower(c)
 
-    module Convert =
-        let ToChar (d) = char d
-
-    module Decimal =
-        let GetBits (d: decimal): int[] = [|0;0;0;0|] //TODO: proper implementation
-        let FromBits (bits: int[]) = new decimal(0) //TODO: proper implementation
-
-    module Environment =
-        let NewLine = "\n" //TODO: proper xplat implementation
-
     module Text =
 
         type StringBuilder(?s: string) =

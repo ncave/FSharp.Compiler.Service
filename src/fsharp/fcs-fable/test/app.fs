@@ -47,7 +47,7 @@ let main argv =
     let fileName = "test_script.fsx"
     let source = readAllText fileName
 
-    let checker = InteractiveChecker(references, readAllBytes)
+    let checker = InteractiveChecker.Create(references, readAllBytes)
     // let parseResults = checker.ParseScript(fileName,source)
     let parseResults, typeCheckResults, projectResults = checker.ParseAndCheckScript(fileName,source)
     
