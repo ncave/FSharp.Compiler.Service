@@ -149,6 +149,7 @@ type internal Entity =
       /// Last part of the entity's full name.
       LastIdent: string }
 
+#if !FABLE_COMPILER
 /// Provides assembly content.
 #if COMPILER_PUBLIC_API
 module AssemblyContentProvider =
@@ -165,6 +166,7 @@ module internal AssemblyContentProvider =
           -> fileName: string option 
           -> assemblies: FSharpAssembly list 
           -> AssemblySymbol list
+#endif
 
 /// Kind of lexical scope.
 #if COMPILER_PUBLIC_API
