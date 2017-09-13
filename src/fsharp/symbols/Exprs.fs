@@ -974,8 +974,6 @@ module FSharpExprConvert =
             | Const.Char    i ->  E.Const(box i, tyR)
             | Const.Unit      ->  E.Const(box (), tyR)
             | Const.Zero      ->  E.DefaultValue (ConvType cenv ty)
-            | _ -> 
-                wfail("FSharp.Compiler.Service cannot yet return this kind of constant", m)
 
     and ConvDecisionTree cenv env dtreeRetTy x m = 
         ConvDecisionTreePrim cenv env dtreeRetTy x |> Mk cenv m dtreeRetTy
