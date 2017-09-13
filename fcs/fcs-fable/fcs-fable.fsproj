@@ -205,7 +205,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Diagnostics.TraceSource" Version="4.0.0" />
     <!-- <PackageReference Include="FSharp.Core" Version="4.2.*" /> -->
   </ItemGroup>
 

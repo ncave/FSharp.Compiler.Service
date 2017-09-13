@@ -1,10 +1,11 @@
 import fable from 'rollup-plugin-fable';
+const fableUtils = require("fable-utils");
 
-// var babelOptions = {
+// const babelOptions = fableUtils.resolveBabelOptions({
 //   presets: [["es2015", {"modules": false}]]
-// };
+// });
 
-var fableOptions = {
+const fableOptions = {
   //babel: babelOptions,
   //plugins: [],
   define: [

@@ -13,6 +13,10 @@ module System =
     module Decimal =
         let GetBits(d: decimal): int[] = [| 0; 0; 0; 0 |] //TODO: proper implementation
 
+    module Diagnostics =
+        type Trace() =
+            static member TraceInformation(s) = () //TODO: proper implementation
+
     module Reflection =
         type AssemblyName(assemblyName: string) =
             member x.Name = assemblyName //TODO: proper implementation
