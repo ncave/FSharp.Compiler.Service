@@ -6,6 +6,9 @@ module public Microsoft.FSharp.Compiler.Layout
 module internal Microsoft.FSharp.Compiler.Layout
 #endif
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System.Text
 open System.Collections.Generic
 open System.IO
@@ -57,7 +60,9 @@ val listL                 : ('a -> Layout) -> 'a list   -> Layout
 val squashTo              : int -> Layout -> Layout
 
 val showL                 : Layout -> string
+#if !FABLE_COMPILER
 val outL                  : TextWriter -> Layout -> unit
+#endif
 val bufferL               : StringBuilder -> Layout -> unit
 
 module TaggedTextOps =
@@ -195,7 +200,9 @@ val renderL  : LayoutRenderer<'b,'a> -> Layout -> 'b
 
 /// Primitive renders 
 val stringR  : LayoutRenderer<string,string list>
+#if !FABLE_COMPILER
 val channelR : TextWriter -> LayoutRenderer<NoResult,NoState>
+#endif
 val bufferR  : StringBuilder -> LayoutRenderer<NoResult,NoState>
 val taggedTextListR  : collector: (TaggedText -> unit) -> LayoutRenderer<NoResult, NoState>
 

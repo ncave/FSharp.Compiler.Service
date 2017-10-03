@@ -5,6 +5,10 @@ module internal Microsoft.FSharp.Compiler.Tastops
 
 open System.Collections.Generic 
 open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core.Operators
+#endif
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.IL
 open Microsoft.FSharp.Compiler.AbstractIL.Extensions.ILX 
@@ -1046,6 +1050,9 @@ let primMkMatch(spBind, exprm, tree, targets, matchm, ty) = Expr.Match (spBind, 
 type MatchBuilder(spBind, inpRange: Range.range) = 
 
     let targets = new ResizeArray<_>(10) 
+#if FABLE_COMPILER
+    new (spBind,inpRange,_) = MatchBuilder(spBind,inpRange)
+#endif
     member x.AddTarget(tg) = 
         let n = targets.Count 
         targets.Add tg
@@ -3080,7 +3087,7 @@ module DebugPrint = begin
              let sortCons (cs:(TyconRef * Rational) list) = cs |> List.sortBy (fun (c, _) -> c.DisplayName) 
              let negvs, posvs = ListMeasureVarOccsWithNonZeroExponents         unt |> sortVars |> List.partition (fun (_, e) -> SignRational e < 0)
              let negcs, poscs = ListMeasureConOccsWithNonZeroExponents g false unt |> sortCons |> List.partition (fun (_, e) -> SignRational e < 0)
-             let unparL (uv:Typar) = wordL (tagText ("'" ^  uv.DisplayName))
+             let unparL (uv:Typar) = wordL (tagText ("'" +  uv.DisplayName))
              let unconL tc = layoutTyconRef tc
              let rationalL e = wordL (tagText(RationalToString e))
              let measureToPowerL x e = if e = OneRational then x else x -- wordL (tagText "^") -- rationalL e
@@ -3297,12 +3304,20 @@ module DebugPrint = begin
             | Const.IntPtr x      -> (x |> string)+"n"
             | Const.UIntPtr x     -> (x |> string)+"un"
             | Const.Single d      -> 
-                (let s = d.ToString("g12", System.Globalization.CultureInfo.InvariantCulture)
-                 if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
+#if FABLE_COMPILER
+                let s = string d
+#else
+                let s = d.ToString("g12", System.Globalization.CultureInfo.InvariantCulture)
+#endif
+                (if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                  then s + ".0" 
                  else s) + "f"
             | Const.Double d      -> 
+#if FABLE_COMPILER
+                let s = string d
+#else
                 let s = d.ToString("g12", System.Globalization.CultureInfo.InvariantCulture)
+#endif
                 if String.forall (fun c -> System.Char.IsDigit(c) || c = '-')  s 
                 then s + ".0" 
                 else s
@@ -3499,15 +3514,15 @@ module DebugPrint = begin
             | Expr.Op (TOp.ValFieldGetAddr rf, _, [], _) -> 
                 leftL(tagText "&") ^^ (recdFieldRefL rf)
             | Expr.Op (TOp.UnionCaseTagGet tycr, _, [x], _) -> 
-                wordL (tagText ("#" ^ tycr.LogicalName ^ ".tag")) ^^ atomL x
+                wordL (tagText ("#" + tycr.LogicalName + ".tag")) ^^ atomL x
             | Expr.Op (TOp.UnionCaseProof c, _, [x], _) -> 
-                wordL (tagText ("#" ^ c.CaseName^ ".cast")) ^^ atomL x
+                wordL (tagText ("#" + c.CaseName + ".cast")) ^^ atomL x
             | Expr.Op (TOp.UnionCaseFieldGet (c, i), _, [x], _) -> 
-                wordL (tagText ("#" ^ c.CaseName ^ "." ^ string i)) --- atomL x
+                wordL (tagText ("#" + c.CaseName + "." + string i)) --- atomL x
             | Expr.Op (TOp.UnionCaseFieldSet (c, i), _, [x;y], _) -> 
-                ((atomL x --- (rightL (tagText ("#" ^ c.CaseName ^ "." ^ string i)))) ^^ wordL(tagText ":=")) --- exprL y
+                ((atomL x --- (rightL (tagText ("#" + c.CaseName + "." + string i)))) ^^ wordL(tagText ":=")) --- exprL y
             | Expr.Op (TOp.TupleFieldGet (_, i), _, [x], _) -> 
-                wordL (tagText ("#" ^ string i)) --- atomL x
+                wordL (tagText ("#" + string i)) --- atomL x
             | Expr.Op (TOp.Coerce, [typ;_], [x], _) -> 
                 atomL x --- (wordL(tagText ":>") ^^ typeL typ) 
             | Expr.Op (TOp.Reraise, [_], [], _) -> 
@@ -4468,7 +4483,7 @@ let underlyingTypeOfEnumTy (g: TcGlobals) typ =
         let tycon = (tcrefOfAppTy g typ).Deref
         match tycon.GetFieldByName "value__" with 
         | Some rf -> rf.FormalType
-        | None ->  error(InternalError("no 'value__' field found for enumeration type "^tycon.LogicalName, tycon.Range))
+        | None ->  error(InternalError("no 'value__' field found for enumeration type "+tycon.LogicalName, tycon.Range))
 
 
 // CLEANUP NOTE: Get rid of this mutation. 
@@ -4947,7 +4962,7 @@ and renameTycon tyenv x =
             let res = tyenv.tyconRefRemap.[mkLocalTyconRef x]
             res
         with :? KeyNotFoundException -> 
-            errorR(InternalError("couldn't remap internal tycon "^showL(DebugPrint.tyconL x), x.Range)); 
+            errorR(InternalError("couldn't remap internal tycon "+showL(DebugPrint.tyconL x), x.Range)); 
             mkLocalTyconRef x 
     tcref.Deref
 
@@ -4989,7 +5004,7 @@ and copyAndRemapAndBindTyconsAndVals g compgen tmenv tycons vs =
                 let res = tmenvinner.tyconRefRemap.[mkLocalTyconRef tycon]
                 res
             with :? KeyNotFoundException -> 
-                errorR(InternalError("couldn't remap internal tycon "^showL(DebugPrint.tyconL tycon), tycon.Range));
+                errorR(InternalError("couldn't remap internal tycon "+showL(DebugPrint.tyconL tycon), tycon.Range));
                 mkLocalTyconRef tycon
         tcref.Deref
              
@@ -5481,7 +5496,7 @@ let rec simplifyTrivialMatch spBind exprm matchm ty tree (targets : _[]) =
         if n >= targets.Length then failwith "simplifyTrivialMatch: target out of range";
         // REVIEW: should we use _spTarget here?
         let (TTarget(vs, rhs, _spTarget)) = targets.[n]
-        if vs.Length <> es.Length then failwith ("simplifyTrivialMatch: invalid argument, n = "^string n^", List.length targets = "^string targets.Length);
+        if vs.Length <> es.Length then failwith ("simplifyTrivialMatch: invalid argument, n = "+string n+", List.length targets = "+string targets.Length);
         // These are non-sticky - any sequence point for 'rhs' goes on 'rhs' _after_ the bindings have been made
         mkInvisibleLetsFromBindings rhs.Range vs es rhs
     | _ -> 
@@ -5910,7 +5925,7 @@ let ExprStats x =
   let count = ref 0
   let folders = {ExprFolder0 with exprIntercept = (fun _ _ _ -> (count := !count + 1; None))}
   let () = FoldExpr folders () x
-  string !count ^ " TExpr nodes"
+  string !count + " TExpr nodes"
 #endif
     
 //-------------------------------------------------------------------------
@@ -6131,6 +6146,10 @@ let mkCallNewDecimal (g:TcGlobals) m (e1, e2, e3, e4, e5)          = mkApps g (t
 let mkCallNewFormat (g:TcGlobals) m aty bty cty dty ety e1    = mkApps g (typedExprForIntrinsic g m g.new_format_info, [[aty;bty;cty;dty;ety]], [ e1 ], m)
 let mkCallRaise     (g:TcGlobals) m aty e1    = mkApps g (typedExprForIntrinsic g m g.raise_info, [[aty]], [ e1 ], m)
 
+#if FABLE_COMPILER
+let TryEliminateDesugaredConstants (_g:TcGlobals) (_m:range) (_c:Const) : Expr option =
+    None
+#else
 let TryEliminateDesugaredConstants g m c = 
     match c with 
     | Const.Decimal d -> 
@@ -6142,6 +6161,7 @@ let TryEliminateDesugaredConstants g m c =
         | _ -> failwith "unreachable"
     | _ -> 
         None
+#endif
 
 let mkSeqTy (g:TcGlobals) ty = mkAppTy g.seq_tcr [ty] 
 let mkIEnumeratorTy (g:TcGlobals) ty = mkAppTy g.tcref_System_Collections_Generic_IEnumerator [ty] 
@@ -6433,7 +6453,7 @@ let AdjustArityOfLambdaBody g arity (vs:Val list) body =
         if  (untupledTys.Length <> arity) then failwith "length untupledTys <> arity";
         let dummyvs, dummyes = 
             untupledTys 
-            |> List.mapi (fun i ty -> mkCompGenLocal v.Range (v.LogicalName ^"_"^string i) ty) 
+            |> List.mapi (fun i ty -> mkCompGenLocal v.Range (v.LogicalName + "_" + string i) ty) 
             |> List.unzip 
         // These are non-sticky - any sequence point for 'body' goes on 'body' _after_ the binding has been made
         let body = mkInvisibleLet v.Range v (mkRefTupled g v.Range dummyes untupledTys) body
@@ -6539,7 +6559,7 @@ let MakeArgsForTopArgs _g m argtysl tpenv =
             let ty = instType tpenv argty
             let nm = 
                match argInfo.Name with 
-               | None -> CompilerGeneratedName ("arg"^ string i^ string j)
+               | None -> CompilerGeneratedName ("arg" + string i + string j)
                | Some id -> id.idText
             fst (mkCompGenLocal m nm ty)))
 
@@ -6656,7 +6676,7 @@ let AdjustPossibleSubsumptionExpr g (expr: Expr) (suppliedArgs: Expr list) : (Ex
                     argtysl |> List.mapi (fun i argtys -> 
                         argtys |> List.mapi (fun j (_, argInfo) -> 
                              match argInfo.Name with 
-                             | None -> CompilerGeneratedName ("arg" ^ string i ^string j)
+                             | None -> CompilerGeneratedName ("arg" + string i + string j)
                              | Some id -> id.idText))
                 | _ -> 
                     []
@@ -6784,11 +6804,11 @@ let AdjustPossibleSubsumptionExpr g (expr: Expr) (suppliedArgs: Expr list) : (Ex
 
                         assert (inpArgTys.Length = actualArgTys.Length)
                         
-                        let inpsAsVars, inpsAsExprs = inpArgTys |> List.mapi (fun j ty -> mkCompGenLocal appm ("arg"^string i^string j) ty)  |> List.unzip
+                        let inpsAsVars, inpsAsExprs = inpArgTys |> List.mapi (fun j ty -> mkCompGenLocal appm ("arg"+string i+string j) ty)  |> List.unzip
                         let inpsAsActualArg = CoerceDetupled inpArgTys inpsAsExprs actualArgTys
                         let inpCloVarType = (mkFunTy (mkRefTupledTy g actualArgTys) cloVar.Type)
                         let newResTy = mkFunTy inpArgTy resTy
-                        let inpCloVar, inpCloVarAsExpr = mkCompGenLocal appm ("clo"^string i) inpCloVarType
+                        let inpCloVar, inpCloVarAsExpr = mkCompGenLocal appm ("clo"+string i) inpCloVarType
                         let newRes = 
                             // For the final arg we can skip introducing the dummy variable
                             if i = N - 1 then 
@@ -6830,7 +6850,7 @@ let AdjustPossibleSubsumptionExpr g (expr: Expr) (suppliedArgs: Expr list) : (Ex
                                 let niceNames = 
                                     match niceNames with 
                                     | nms when nms.Length = inpArgTys.Length -> nms
-                                    | [nm] -> inpArgTys |> List.mapi (fun i _ -> (nm^string i))
+                                    | [nm] -> inpArgTys |> List.mapi (fun i _ -> (nm + string i))
                                     | nms -> nms
                                 match suppliedArg with 
                                 | Some arg -> 
@@ -6978,18 +6998,18 @@ let LinearizeTopMatch g parent = function
 
 
 let commaEncs strs  = String.concat "," strs
-let angleEnc  str   = "{" ^ str ^ "}" 
+let angleEnc  str   = "{" + str + "}" 
 let ticksAndArgCountTextOfTyconRef (tcref:TyconRef) =
-     // Generic type names are (name ^ "`" ^ digits) where name does not contain "`".
+     // Generic type names are (name + "`" + digits) where name does not contain "`".
      let path = Array.toList (fullMangledPathToTyconRef tcref) @ [tcref.CompiledName]
      textOfPath path
      
 let typarEnc _g (gtpsType, gtpsMethod) typar =
     match List.tryFindIndex (typarEq typar) gtpsType with
-    | Some idx -> "`"  ^ string idx // single-tick-index for typar from type
+    | Some idx -> "`"  + string idx // single-tick-index for typar from type
     | None     ->
         match List.tryFindIndex (typarEq typar) gtpsMethod with
-        | Some idx -> "``" ^ string idx // double-tick-index for typar from method
+        | Some idx -> "``" + string idx // double-tick-index for typar from method
         | None     -> warning(InternalError("Typar not found during XmlDoc generation", typar.Range))
                       "``0" // REVIEW: this should be ERROR not WARNING?
 
@@ -7013,19 +7033,19 @@ let rec typeEnc g (gtpsType, gtpsMethod) ty =
             | 3 -> "[0:, 0:, 0:]"
             | 4 -> "[0:, 0:, 0:, 0:]"
             | _ -> failwith "impossible: rankOfArrayTyconRef: unsupported array rank"
-        typeEnc g (gtpsType, gtpsMethod) (List.head tinst) ^ arraySuffix
+        typeEnc g (gtpsType, gtpsMethod) (List.head tinst) + arraySuffix
     | TType_ucase (UCRef(tcref, _), tinst)   
     | TType_app (tcref, tinst)   -> 
         if tyconRefEq g g.byref_tcr tcref then
-            typeEnc g (gtpsType, gtpsMethod) (List.head tinst) ^ "@"
+            typeEnc g (gtpsType, gtpsMethod) (List.head tinst) + "@"
         elif tyconRefEq g tcref g.nativeptr_tcr then
-            typeEnc g (gtpsType, gtpsMethod) (List.head tinst) ^ "*"
+            typeEnc g (gtpsType, gtpsMethod) (List.head tinst) + "*"
         else
             let tyName = 
                 let ty = stripTyEqnsAndMeasureEqns g ty
                 match ty with
                 | TType_app (tcref, _tinst)   -> 
-                    // Generic type names are (name ^ "`" ^ digits) where name does not contain "`".
+                    // Generic type names are (name + "`" + digits) where name does not contain "`".
                     // In XML doc, when used in type instances, these do not use the ticks.
                     let path = Array.toList (fullMangledPathToTyconRef tcref) @ [tcref.CompiledName]
                     textOfPath (List.map DemangleGenericTypeName path)

@@ -5,6 +5,6 @@
   </PropertyGroup>
    <ItemGroup>
     <DotNetCliToolReference Include="dotnet-mergenupkg" Version="1.0.*" />
-    <DotNetCliToolReference Include="dotnet-fssrgen" Version="3.3.*" />
+    <DotNetCliToolReference Include="dotnet-fssrgen" Version="3.4.*" />
   </ItemGroup>
 </Project>

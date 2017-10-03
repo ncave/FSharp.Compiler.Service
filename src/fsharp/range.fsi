@@ -6,9 +6,9 @@ module public Microsoft.FSharp.Compiler.Range
 module internal Microsoft.FSharp.Compiler.Range
 #endif
 
+open Internal.Utilities
 open System.Text
 open System.Collections.Generic
-open Internal.Utilities
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal 
 open Microsoft.FSharp.Compiler  

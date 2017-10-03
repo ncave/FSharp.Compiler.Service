@@ -33,6 +33,13 @@ let runCmdIn workDir (exe:string) = Printf.ksprintf (fun (args:string) ->
         |> assertExitCodeZero
 )
 
+let runDotnet workDir = Printf.ksprintf (fun (args:string) ->
+    printfn "[%s] dotnet %s" workDir args
+    Shell.Exec("dotnet", args, workDir)
+    |> assertExitCodeZero
+)
+
+
 // --------------------------------------------------------------------------------------
 // The rest of the code is standard F# build script
 // --------------------------------------------------------------------------------------
@@ -122,13 +129,28 @@ let isDotnetSDKInstalled =
         _ -> false
 
 
+Target "CodeGen.Fable" (fun _ ->
+    // run standard FCS codegen
+    runDotnet __SOURCE_DIRECTORY__  "build %s" "./fcs-fable/codegen/codegen.fsproj"
+
+    // Fable-specific (running fssrgen without .resx output to inline it)
+    let outDir = "./fcs-fable/codegen"
+    runDotnet __SOURCE_DIRECTORY__  "fssrgen ../src/fsharp/FSComp.txt %s/FSComp.fs" outDir
+    runDotnet __SOURCE_DIRECTORY__  "fssrgen ../src/fsharp/fsi/FSIstrings.txt %s/FSIstrings.fs" outDir
+
+    // Fable-specific (comment the #line directive as it is not supported)
+    ["lex.fs"; "pplex.fs"; "illex.fs"; "ilpars.fs"; "pars.fs"; "pppars.fs"]
+    |> Seq.map (fun fileName -> IO.Path.Combine (outDir, fileName))
+    |> RegexReplaceInFilesWithEncoding @"# (?=\d)" "//# " Text.Encoding.UTF8
+)
+
 Target "Build.NetStd" (fun _ ->
-    runCmdIn __SOURCE_DIRECTORY__  "dotnet" "pack %s -v n -c Release" "FSharp.Compiler.Service.netstandard.sln"
+    runDotnet __SOURCE_DIRECTORY__  "pack %s -v n -c Release" "FSharp.Compiler.Service.netstandard.sln"
 )
 
 
 Target "Test.NetStd" (fun _ ->
-    runCmdIn __SOURCE_DIRECTORY__  "dotnet" "run -p FSharp.Compiler.Service.Tests.netcore/FSharp.Compiler.Service.Tests.netcore.fsproj -c Release -- --result:TestResults.NetStd.xml;format=nunit3"
+    runDotnet __SOURCE_DIRECTORY__  "run -p FSharp.Compiler.Service.Tests.netcore/FSharp.Compiler.Service.Tests.netcore.fsproj -c Release -- --result:TestResults.NetStd.xml;format=nunit3"
 )
 
 
@@ -136,7 +158,7 @@ Target "Test.NetStd" (fun _ ->
 Target "Nuget.AddNetStd" (fun _ ->
     let nupkg = sprintf "%s/FSharp.Compiler.Service.%s.nupkg" releaseDir release.AssemblyVersion
     let netcoreNupkg = sprintf "FSharp.Compiler.Service.netstandard/bin/Release/FSharp.Compiler.Service.%s.nupkg" release.AssemblyVersion
-    runCmdIn __SOURCE_DIRECTORY__ "dotnet" "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
+    runDotnet __SOURCE_DIRECTORY__ "mergenupkg --source %s --other %s --framework netstandard1.6" nupkg netcoreNupkg
 )
 
 

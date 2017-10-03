@@ -16,6 +16,16 @@ open Microsoft.FSharp.Compiler.NameResolution
 open Microsoft.FSharp.Compiler.Tast
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+// stub
+[<Class>]
+type internal IncrementalBuilder = 
+      member IncrementUsageCount : unit -> IDisposable
+      member IsAlive : bool
+      static member KeepBuilderAlive : IncrementalBuilder option -> IDisposable
+
+#else //!FABLE_COMPILER
+
 /// Lookup the global static cache for building the FrameworkTcImports
 type internal FrameworkImportsCache = 
     new : size: int -> FrameworkImportsCache
@@ -248,3 +258,4 @@ module internal IncrementalBuild =
         /// Set the concrete inputs for this build. 
         member GetInitialPartialBuild : vectorinputs: BuildInput list -> PartialBuild
 
+#endif //!FABLE_COMPILER

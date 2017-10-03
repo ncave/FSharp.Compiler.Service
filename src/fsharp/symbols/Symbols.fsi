@@ -962,8 +962,10 @@ and [<Class>] FSharpType =
 and [<Class>] internal FSharpType =
 #endif
     /// Internal use only. Create a ground type.
-    internal new : g:TcGlobals * thisCcu: CcuThunk * tcImports: TcImports * typ:TType -> FSharpType
     internal new : Impl.cenv * typ:TType -> FSharpType
+#if !FABLE_COMPILER
+    internal new : g:TcGlobals * thisCcu: CcuThunk * tcImports: TcImports * typ:TType -> FSharpType
+#endif
 
     /// Indicates this is a named type in an unresolved assembly 
     member IsUnresolved : bool
