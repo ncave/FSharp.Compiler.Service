@@ -3,10 +3,10 @@
 /// Anything to do with special names of identifiers and other lexical rules 
 module Microsoft.FSharp.Compiler.Range
 
+open Internal.Utilities
 open System.IO
 open System.Collections.Generic
 open Microsoft.FSharp.Core.Printf
-open Internal.Utilities
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
@@ -43,11 +43,15 @@ type pos(code:int32) =
     member r.Encoding = code
     static member EncodingSize = posBitCount
     static member Decode (code:int32) : pos = pos code
+#if FABLE_COMPILER
+    override p.ToString() = sprintf "(%d,%d)" p.Line p.Column
+#endif
     override p.Equals(obj) = match obj with :? pos as p2 -> code = p2.Encoding | _ -> false
     override p.GetHashCode() = hash code
 
 [<Literal>]
 let fileIndexBitCount = 14
+
 [<Literal>]
 let startLineBitCount = lineBitCount
 [<Literal>]
@@ -108,6 +112,10 @@ type FileIndexTable() =
     let indexToFileTable = new ResizeArray<_>(11)
     let fileToIndexTable = new Dictionary<string, int>(11)
     member t.FileToIndex f = 
+#if FABLE_COMPILER
+        (
+                let ok, res = fileToIndexTable.TryGetValue(f) in
+#else
         let mutable res = 0 
         let ok = fileToIndexTable.TryGetValue(f, &res) 
         if ok then res 
@@ -115,6 +123,7 @@ type FileIndexTable() =
             lock fileToIndexTable (fun () -> 
                 let mutable res = 0 in
                 let ok = fileToIndexTable.TryGetValue(f, &res) in
+#endif
                 if ok then res 
                 else
                     let n = indexToFileTable.Count in
@@ -180,10 +189,15 @@ let posOrder   = Order.orderOn (fun (p:pos) -> p.Line, p.Column) (Pair.order (In
 let rangeOrder = Order.orderOn (fun (r:range) -> r.FileName, r.Start) (Pair.order (String.order, posOrder))
 
 let outputPos   (os:TextWriter) (m:pos)   = fprintf os "(%d,%d)" m.Line m.Column
-let outputRange (os:TextWriter) (m:range) = fprintf os "%s%a-%a" m.FileName outputPos m.Start outputPos m.End
 let boutputPos   os (m:pos)   = bprintf os "(%d,%d)" m.Line m.Column
+#if FABLE_COMPILER
+let stringPos (m:pos) = sprintf "(%d,%d)" m.Line m.Column
+let outputRange (os:TextWriter) (m:range) = fprintf os "%s%s-%s" m.FileName (stringPos m.Start) (stringPos m.End)
+let boutputRange os (m:range) = bprintf os "%s%s-%s" m.FileName (stringPos m.Start) (stringPos m.End)
+#else
+let outputRange (os:TextWriter) (m:range) = fprintf os "%s%a-%a" m.FileName outputPos m.Start outputPos m.End
 let boutputRange os (m:range) = bprintf os "%s%a-%a" m.FileName boutputPos m.Start boutputPos m.End
-    
+#endif
 let posGt (p1:pos) (p2:pos) = (p1.Line > p2.Line || (p1.Line = p2.Line && p1.Column > p2.Column))
 let posEq (p1:pos) (p2:pos) = (p1.Line = p2.Line &&  p1.Column = p2.Column)
 let posGeq p1 p2 = posEq p1 p2 || posGt p1 p2
@@ -245,7 +259,11 @@ type Range01 = Pos01 * Pos01
 module Line =
     // Visual Studio uses line counts starting at 0, F# uses them starting at 1 
     let fromZ (line:Line0) = int line+1
+#if FABLE_COMPILER
+    let toZ (line:int) : Line0 = int (line - 1)
+#else
     let toZ (line:int) : Line0 = LanguagePrimitives.Int32WithMeasure(line - 1)
+#endif
 
 module Pos =
     let fromZ (line:Line0) idx = mkPos (Line.fromZ line) idx 

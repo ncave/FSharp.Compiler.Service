@@ -34,6 +34,7 @@ type internal FSharpDeclarationListItem =
     /// Get the description text for the declaration. Computing this property may require using compiler
     /// resources and may trigger execution of a type provider method to retrieve documentation.
     ///
+#if !FABLE_COMPILER
     /// May return "Loading..." if timeout occurs
     member StructuredDescriptionText : FSharpStructuredToolTipText
 
@@ -43,6 +44,7 @@ type internal FSharpDeclarationListItem =
     member StructuredDescriptionTextAsync : Async<FSharpStructuredToolTipText>
 
     member DescriptionTextAsync : Async<FSharpToolTipText>
+#endif
 
     member Glyph : FSharpGlyph
 

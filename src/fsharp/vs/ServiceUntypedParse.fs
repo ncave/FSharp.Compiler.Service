@@ -7,6 +7,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System
 open System.IO
 open System.Collections.Generic
@@ -87,6 +90,9 @@ type CompletionContext =
 [<Sealed>]
 type FSharpParseFileResults(errors: FSharpErrorInfo[], input: Ast.ParsedInput option, parseHadErrors: bool, dependencyFiles: string[]) = 
 
+#if FABLE_COMPILER
+    new (errors, input, parseHadErrors, dependencyFiles, _) = FSharpParseFileResults(errors, input, parseHadErrors, dependencyFiles)
+#endif
     member scope.Errors = errors
 
     member scope.ParseHadErrors = parseHadErrors

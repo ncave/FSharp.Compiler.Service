@@ -224,6 +224,7 @@ type IAssemblyContentCache =
     abstract TryGet: AssemblyPath -> AssemblyContentCacheEntry option
     abstract Set: AssemblyPath -> AssemblyContentCacheEntry -> unit
 
+#if !FABLE_COMPILER
 module AssemblyContentProvider =
     open System.IO
 
@@ -386,6 +387,7 @@ module AssemblyContentProvider =
                 | None -> true
                 | Some x when x.IsPublic -> true
                 | _ -> false)
+#endif //!FABLE_COMPILER
 
 type EntityCache() =
     let dic = Dictionary<AssemblyPath, AssemblyContentCacheEntry>()
