@@ -6,6 +6,9 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open System
 open System.IO
 open System.Collections.Generic
@@ -507,7 +510,11 @@ type FSharpLineTokenizer(lexbuf: UnicodeLexing.Lexbuf,
     // so we need to split it into tokens that are used by VS for colorization
     
     // Stack for tokens that are split during postprocessing    
+#if FABLE_COMPILER
+    let tokenStack = Internal.Utilities.Text.Parsing.Stack<_>(31)
+#else
     let mutable tokenStack = new Stack<_>()
+#endif
     let delayToken tok = tokenStack.Push(tok)
 
     // Process: anywhite* #<directive>
@@ -757,6 +764,9 @@ type FSharpSourceTokenizer(defineConstants : string list, filename : Option<stri
     let lexArgsLightOn = mkLexargs(filename,defineConstants,LightSyntaxStatus(true,false),lexResourceManager, ref [],DiscardErrorsLogger) 
     let lexArgsLightOff = mkLexargs(filename,defineConstants,LightSyntaxStatus(false,false),lexResourceManager, ref [],DiscardErrorsLogger) 
     
+#if FABLE_COMPILER
+    new (defineConstants, filename, _) = FSharpSourceTokenizer(defineConstants, filename)
+#endif
     member this.CreateLineTokenizer(lineText: string) = 
         let lexbuf = UnicodeLexing.StringAsLexbuf lineText
         FSharpLineTokenizer(lexbuf, Some lineText.Length, filename, lexArgsLightOn, lexArgsLightOff)
