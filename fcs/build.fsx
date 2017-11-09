@@ -153,6 +153,21 @@ Target "NuGet.NetFx" (fun _ ->
 // .NET Core and .NET Core SDK
 
 
+Target "CodeGen.Fable" (fun _ ->
+    // run standard FCS codegen
+    runDotnet __SOURCE_DIRECTORY__ (sprintf "build %s" "./fcs-fable/codegen/codegen.fsproj")
+
+    // Fable-specific (running fssrgen without .resx output to inline it)
+    let outDir = "./fcs-fable/codegen"
+    runDotnet __SOURCE_DIRECTORY__ (sprintf "fssrgen ../src/fsharp/FSComp.txt %s/FSComp.fs" outDir)
+    runDotnet __SOURCE_DIRECTORY__ (sprintf "fssrgen ../src/fsharp/fsi/FSIstrings.txt %s/FSIstrings.fs" outDir)
+
+    // Fable-specific (comment the #line directive as it is not supported)
+    ["lex.fs"; "pplex.fs"; "illex.fs"; "ilpars.fs"; "pars.fs"; "pppars.fs"]
+    |> Seq.map (fun fileName -> IO.Path.Combine (outDir, fileName))
+    |> RegexReplaceInFilesWithEncoding @"# (?=\d)" "//# " Text.Encoding.UTF8
+)
+
 Target "Build.NetStd" (fun _ ->
     runDotnet __SOURCE_DIRECTORY__ (sprintf "pack %s -v n -c Release" "FSharp.Compiler.Service.netstandard.sln")
 )
