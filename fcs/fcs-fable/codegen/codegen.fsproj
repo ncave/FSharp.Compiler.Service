@@ -2,17 +2,17 @@
   <PropertyGroup>
     <FSharpSourcesRoot>$(MSBuildProjectDirectory)\..\..\..\src</FSharpSourcesRoot>
   </PropertyGroup>
-  <!-- <Import Project="..\..\fcs.props" /> -->
+  <Import Project="..\..\fcs.props" />
   <PropertyGroup>
     <TargetFramework>netstandard1.6</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <!-- <FsSrGen Include="$(FSharpSourcesRoot)\fsharp\FSComp.txt">
+    <FsSrGen Include="$(FSharpSourcesRoot)\fsharp\FSComp.txt">
       <Link>FSComp.txt</Link>
-    </FsSrGen> -->
-    <!-- <FsSrGen Include="$(FSharpSourcesRoot)\fsharp\fsi\FSIstrings.txt">
+    </FsSrGen>
+    <FsSrGen Include="$(FSharpSourcesRoot)\fsharp\fsi\FSIstrings.txt">
       <Link>FSIstrings.txt</Link>
-    </FsSrGen> -->
+    </FsSrGen>
     <FsYacc Include="$(FSharpSourcesRoot)\absil\ilpars.fsy">
       <OtherFlags>--module Microsoft.FSharp.Compiler.AbstractIL.Internal.AsciiParser --open Microsoft.FSharp.Compiler.AbstractIL --internal --lexlib Internal.Utilities.Text.Lexing --parslib Internal.Utilities.Text.Parsing</OtherFlags>
       <Link>ilpars.fsy</Link>
@@ -38,7 +38,7 @@
       <Link>ParserAndUntypedAST/pppars.fsy</Link>
     </FsYacc>
   </ItemGroup>
-  <Import Project="$(FSharpSourcesRoot)\scripts\fssrgen.targets" />
+  <Import Project="fssrgen.targets" />
   <Import Project="$(FSharpSourcesRoot)\..\packages\FsLexYacc.7.0.6\build\FsLexYacc.targets" />
-  <Target Name="GenerateCode" AfterTargets="Restore" BeforeTargets="BeforeBuild" DependsOnTargets="CallFsLex;CallFsYacc;ProcessFsSrGen"></Target>
+  <Target Name="GenerateCode" AfterTargets="Restore" BeforeTargets="BeforeBuild" DependsOnTargets="CallFsLex;CallFsYacc;CallFsSrGen"></Target>
 </Project>
