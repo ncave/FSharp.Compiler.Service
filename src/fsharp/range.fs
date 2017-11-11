@@ -112,7 +112,7 @@ type FileIndexTable() =
     let indexToFileTable = new ResizeArray<_>(11)
     let fileToIndexTable = new Dictionary<string, int>(11)
     member t.FileToIndex f = 
-#if FABLE_COMPILER
+#if FABLE_COMPILER // no byref
         (
                 let ok, res = fileToIndexTable.TryGetValue(f) in
 #else
