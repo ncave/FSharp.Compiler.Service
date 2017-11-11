@@ -1547,7 +1547,11 @@ module internal Parser =
             Lexhelp.usingLexbufForParsing(UnicodeLexing.StringAsLexbuf(addNewLine source), fileName) (fun lexbuf ->
                 let lexfun = createLexerFunction fileName options lexbuf errHandler
                 let isLastCompiland =
+#if FABLE_COMPILER
+                    fileName.Equals(options.LastFileName, StringComparison.OrdinalIgnoreCase) ||
+#else
                     fileName.Equals(options.LastFileName, StringComparison.CurrentCultureIgnoreCase) ||
+#endif
                     CompileOps.IsScript(fileName)
                 let isExe = options.IsExe
                 try Some (ParseInput(lexfun, errHandler.ErrorLogger, lexbuf, None, fileName, (isLastCompiland, isExe)))

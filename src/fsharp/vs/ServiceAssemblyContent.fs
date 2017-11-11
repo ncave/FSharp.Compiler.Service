@@ -7,6 +7,10 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+open Microsoft.FSharp.Core.Operators
+#endif
 open System
 open System.Collections.Generic
 

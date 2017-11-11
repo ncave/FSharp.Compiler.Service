@@ -144,9 +144,9 @@ let rec AttachRange m (exn:exn) =
         | UnresolvedPathReferenceNoRange(a, p) -> UnresolvedPathReference(a, p, m)
 #if !FABLE_COMPILER
         | :? System.Reflection.TargetInvocationException -> AttachRange m exn.InnerException
-        | Failure(msg) -> InternalError(msg + " (Failure)", m)
         | :? System.ArgumentException as exn -> InternalError(exn.Message + " (ArgumentException)", m)
 #endif
+        | Failure(msg) -> InternalError(msg + " (Failure)", m)
         | notARangeDual -> notARangeDual
 
 

@@ -2,6 +2,10 @@
 
 namespace Microsoft.FSharp.Compiler.SourceCodeServices
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
+
 /// Patterns over FSharpSymbol and derivatives.
 [<RequireQualifiedAccess>]
 module Symbol =

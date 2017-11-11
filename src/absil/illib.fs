@@ -1019,15 +1019,18 @@ type MemoizationTable<'T,'U>(compute: 'T -> 'U, keyComparer: IEqualityComparer<'
     let table = new System.Collections.Generic.Dictionary<'T,'U>(keyComparer) 
     member t.Apply(x) = 
         if (match canMemoize with None -> true | Some f -> f x) then 
-#if FABLE_COMPILER // no lock support
+#if FABLE_COMPILER // no byref
             (
+                    let ok, res = table.TryGetValue(x)
 #else
-            let ok, res = table.TryGetValue(x)
+            let mutable res = Unchecked.defaultof<'U>
+            let ok = table.TryGetValue(x,&res)
             if ok then res 
             else
                 lock table (fun () -> 
+                    let mutable res = Unchecked.defaultof<'U> 
+                    let ok = table.TryGetValue(x,&res)
 #endif
-                    let ok, res = table.TryGetValue(x)
                     if ok then res 
                     else
                         let res = compute x

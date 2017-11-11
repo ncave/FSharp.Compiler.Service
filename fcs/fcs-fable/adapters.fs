@@ -56,7 +56,6 @@ module System =
             let GetCurrentDirectory () = "." //TODO: proper xplat implementation
 
         module Path =
-            open System.Text.RegularExpressions
 
             let Combine (path1: string, path2: string) = //TODO: proper xplat implementation
                 let path1 =
@@ -65,13 +64,18 @@ module System =
                 path1 + (path2.TrimStart [|'\\';'/'|])
 
             let ChangeExtension (path: string, ext: string) =
-                Regex.Replace(path, "\.\w+$", ext)
+                let i = path.LastIndexOf(".")
+                if i < 0 then path
+                else path.Substring(0, i) + ext
 
             let HasExtension (path: string) =
-                Regex.Match(path, "\.\w+$").Success
+                let i = path.LastIndexOf(".")
+                i >= 0
 
             let GetExtension (path: string) =
-                Regex.Match(path, "\.\w+$").Value
+                let i = path.LastIndexOf(".")
+                if i < 0 then ""
+                else path.Substring(i)
 
             let GetInvalidPathChars () = //TODO: proper xplat implementation
                 Seq.toArray "<>:\"|\\/?*\b\t"
@@ -89,7 +93,9 @@ module System =
 
             let GetFileNameWithoutExtension (path: string) =
                 let filename = GetFileName path
-                Regex.Replace(filename, "\.\w+$", "")
+                let i = filename.LastIndexOf(".")
+                if i < 0 then filename
+                else filename.Substring(0, i)
 
             let GetDirectoryName (path: string) = //TODO: proper xplat implementation
                 let normPath = path.Replace("\\", "/")
@@ -253,6 +259,7 @@ module Microsoft =
                     //if exn.GetType().FullName.EndsWith("Exception") then Some exn.Message else None
                 let Failure message = new System.Exception(message)
                 let nullArg x = raise(System.ArgumentNullException(x))
+                let lock _lockObj action = action() // no locking
 
             module Printf =
                 let bprintf (sb: System.Text.StringBuilder) =

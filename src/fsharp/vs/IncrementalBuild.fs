@@ -980,7 +980,7 @@ module internal IncrementalBuild =
 // stub
 type IncrementalBuilder() =
     member x.IncrementUsageCount () =
-        { new System.IDisposable with member x.Dispose() = () }
+        { new System.IDisposable with member __.Dispose() = () }
     member x.IsAlive = false
     static member KeepBuilderAlive (builderOpt: IncrementalBuilder option) = 
         match builderOpt with 
