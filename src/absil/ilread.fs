@@ -3586,7 +3586,7 @@ and seekReadManifestResources ctxt () =
                  CustomAttrs =  seekReadCustomAttrs ctxt (TaggedIndex(hca_ManifestResource, i)) }
              yield r ])
 
-
+(*
 and seekReadNestedExportedTypes ctxt parentIdx = 
     mkILNestedExportedTypesLazy
       (lazy
@@ -3631,6 +3631,52 @@ and seekReadTopExportedTypes ctxt () =
                    res := entry :: !res
            done
            List.rev !res)
+*)
+
+and seekReadNestedExportedTypes ctxt (exported: _ array) (nested: Lazy<_ array>) parentIdx = 
+    mkILNestedExportedTypesLazy
+      (lazy
+            nested.Force().[parentIdx-1]
+            |> List.map (fun i ->
+                let (flags, _tok, nameIdx, namespaceIdx, _implIdx) = exported.[i-1]
+                { Name = readBlobHeapAsTypeName ctxt (nameIdx, namespaceIdx)
+                  Access = (match typeAccessOfFlags flags with
+                            | ILTypeDefAccess.Nested n -> n
+                            | _ -> failwith "non-nested access for a nested type described as being in an auxiliary module")
+                  Nested = seekReadNestedExportedTypes ctxt exported nested i
+                  CustomAttrs = seekReadCustomAttrs ctxt (TaggedIndex(hca_ExportedType, i)) }
+            ))
+
+and seekReadTopExportedTypes ctxt () = 
+    mkILExportedTypesLazy
+      (lazy
+            let numRows = ctxt.getNumRows TableNames.ExportedType
+            let exported = [| for i in 1..numRows -> seekReadExportedTypeRow ctxt i |]
+
+            // add each nested type id to their parent's children list
+            let nested = lazy (
+                let nested = [| for _i in 1..numRows -> [] |]
+                for i = 1 to numRows do
+                    let (_,_,_,_,TaggedIndex(tag, idx)) = exported.[i-1]
+                    if (idx <> 0) && (tag = i_ExportedType) then
+                        nested.[idx-1] <- i :: nested.[idx-1]
+                nested)
+            
+            // return top exported types
+            [ for i = 1 to numRows do
+                let (flags, _tok, nameIdx, namespaceIdx, implIdx) = exported.[i-1]
+                let (TaggedIndex(tag, _idx)) = implIdx
+
+                // if not a nested type
+                if (isTopTypeDef flags) && (tag <> i_ExportedType) then
+                    yield
+                      { ScopeRef = seekReadImplAsScopeRef ctxt implIdx
+                        Name = readBlobHeapAsTypeName ctxt (nameIdx, namespaceIdx)
+                        IsForwarder = ((flags &&& 0x00200000) <> 0)
+                        Access = typeAccessOfFlags flags
+                        Nested = seekReadNestedExportedTypes ctxt exported nested i
+                        CustomAttrs = seekReadCustomAttrs ctxt (TaggedIndex(hca_ExportedType, i)) }
+            ])
 
 #if !FX_NO_PDB_READER
 let getPdbReader opts infile =  
