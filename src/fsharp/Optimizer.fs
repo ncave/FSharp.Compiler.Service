@@ -3197,7 +3197,6 @@ let OptimizeImplFile(settings, ccu, tcGlobals, tcVal, importMap, optEnv, isIncre
 // Pickle to stable format for cross-module optimization data
 //------------------------------------------------------------------------- 
 
-#if INCLUDE_METADATA_WRITER
 
 let rec p_ExprValueInfo x st =
     match x with 
@@ -3224,7 +3223,6 @@ and p_ModuleInfo x st =
 and p_LazyModuleInfo x st = 
     p_lazy p_ModuleInfo x st
 let p_CcuOptimizationInfo x st = p_LazyModuleInfo x st
-#endif
 
 let rec u_ExprInfo st =
     let rec loop st =
