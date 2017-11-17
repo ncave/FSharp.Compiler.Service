@@ -3586,52 +3586,6 @@ and seekReadManifestResources ctxt () =
                  CustomAttrs =  seekReadCustomAttrs ctxt (TaggedIndex(hca_ManifestResource, i)) }
              yield r ])
 
-(*
-and seekReadNestedExportedTypes ctxt parentIdx = 
-    mkILNestedExportedTypesLazy
-      (lazy
-         [ for i = 1 to ctxt.getNumRows TableNames.ExportedType do
-               let (flags, _tok, nameIdx, namespaceIdx, implIdx) = seekReadExportedTypeRow ctxt i
-               if not (isTopTypeDef flags) then
-                   let (TaggedIndex(tag, idx) ) = implIdx
-               //let isTopTypeDef =  (idx = 0 || tag <> i_ExportedType) 
-               //if not isTopTypeDef then
-                   match tag with 
-                   | tag when tag = i_ExportedType && idx = parentIdx  ->
-                       let nm = readBlobHeapAsTypeName ctxt (nameIdx, namespaceIdx)
-                       yield 
-                         { Name=nm
-                           Access=(match typeAccessOfFlags flags with ILTypeDefAccess.Nested n -> n | _ -> failwith "non-nested access for a nested type described as being in an auxiliary module")
-                           Nested=seekReadNestedExportedTypes ctxt i
-                           CustomAttrs=seekReadCustomAttrs ctxt (TaggedIndex(hca_ExportedType, i)) } 
-                   | _ -> () ])
-      
-and seekReadTopExportedTypes ctxt () = 
-    mkILExportedTypesLazy 
-      (lazy
-           let res = ref []
-           for i = 1 to ctxt.getNumRows TableNames.ExportedType do
-             let (flags, _tok, nameIdx, namespaceIdx, implIdx) = seekReadExportedTypeRow ctxt i
-             if isTopTypeDef flags then 
-               let (TaggedIndex(tag, _idx) ) = implIdx
-               
-               // the nested types will be picked up by their enclosing types
-               if tag <> i_ExportedType then
-                   let nm = readBlobHeapAsTypeName ctxt (nameIdx, namespaceIdx)
-                   
-                   let scoref = seekReadImplAsScopeRef ctxt implIdx
-                        
-                   let entry = 
-                     { ScopeRef=scoref
-                       Name=nm
-                       IsForwarder =   ((flags &&& 0x00200000) <> 0)
-                       Access=typeAccessOfFlags flags
-                       Nested=seekReadNestedExportedTypes ctxt i
-                       CustomAttrs=seekReadCustomAttrs ctxt (TaggedIndex(hca_ExportedType, i)) } 
-                   res := entry :: !res
-           done
-           List.rev !res)
-*)
 
 and seekReadNestedExportedTypes ctxt (exported: _ array) (nested: Lazy<_ array>) parentIdx = 
     mkILNestedExportedTypesLazy
@@ -3648,7 +3602,7 @@ and seekReadNestedExportedTypes ctxt (exported: _ array) (nested: Lazy<_ array>)
             ))
 
 and seekReadTopExportedTypes ctxt () = 
-    mkILExportedTypesLazy
+    mkILExportedTypesLazy 
       (lazy
             let numRows = ctxt.getNumRows TableNames.ExportedType
             let exported = [| for i in 1..numRows -> seekReadExportedTypeRow ctxt i |]
@@ -3657,11 +3611,11 @@ and seekReadTopExportedTypes ctxt () =
             let nested = lazy (
                 let nested = [| for _i in 1..numRows -> [] |]
                 for i = 1 to numRows do
-                    let (_,_,_,_,TaggedIndex(tag, idx)) = exported.[i-1]
-                    if (idx <> 0) && (tag = i_ExportedType) then
+                    let (flags,_,_,_,TaggedIndex(tag, idx)) = exported.[i-1]
+                    if not (isTopTypeDef flags) && (tag = i_ExportedType) then
                         nested.[idx-1] <- i :: nested.[idx-1]
                 nested)
-            
+
             // return top exported types
             [ for i = 1 to numRows do
                 let (flags, _tok, nameIdx, namespaceIdx, implIdx) = exported.[i-1]
