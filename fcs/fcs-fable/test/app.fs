@@ -2,17 +2,19 @@ module App
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.SourceCodeServices
 
-[<EntryPoint>]
-let main argv =
-    printfn "Parsing begins..."
+let use_net45_meta = false
 
-#if USE_DOTNET40_BINARIES
-    let metadataPath = "/temp/metadata/"
-    let references = ["Fable.Core";"FSharp.Core";"mscorlib";"System";"System.Core";"System.Data";"System.IO";"System.Xml";"System.Numerics"]
-#else // dotnet core 2.0 binaries
-    let metadataPath = "/temp/metadata2/"
-    let references = [
-        "Fable.Core"
+let metadataPath =
+    if use_net45_meta then
+        "/temp/metadata/"  // dotnet 4.5 binaries
+    else 
+        "/temp/metadata2/" // dotnet core 2.0 binaries
+
+let references =
+    if use_net45_meta then
+      [|"Fable.Core";"FSharp.Core";"mscorlib";"System";"System.Core";"System.Data";"System.IO";"System.Xml";"System.Numerics"|]
+    else
+      [|"Fable.Core"
         "FSharp.Core"
         "Microsoft.CSharp"
         "Microsoft.VisualBasic"
@@ -156,19 +158,27 @@ let main argv =
         "System.Xml.XPath"
         "System.Xml.XPath.XDocument"
         "WindowsBase"
-    ]
+        |]
+
+#if !DOTNET_FILE_SYSTEM
+
+let readFileSync: System.Func<string, byte[]> = Fable.Core.JsInterop.import "readFileSync" "fs"
+let readTextSync: System.Func<string, string, string> = Fable.Core.JsInterop.import "readFileSync" "fs"
+
+let readAllBytes = fun (fileName:string) -> readFileSync.Invoke (metadataPath + fileName)
+let readAllText = fun (filePath:string) -> readTextSync.Invoke (filePath, "utf8")
+
+#else // DOTNET_FILE_SYSTEM
+
+let readAllBytes = fun (fileName:string) -> System.IO.File.ReadAllBytes (metadataPath + fileName)
+let readAllText = fun (filePath:string) -> System.IO.File.ReadAllText (filePath, System.Text.Encoding.UTF8)
+
 #endif
 
-#if DOTNET_FILE_SYSTEM
-    let readAllBytes = fun (fileName:string) -> System.IO.File.ReadAllBytes (metadataPath + fileName)
-    let readAllText = fun (filePath:string) -> System.IO.File.ReadAllText (filePath, System.Text.Encoding.UTF8)
-#else
-    let readFileSync: System.Func<string, byte[]> = Fable.Core.JsInterop.import "readFileSync" "fs"
-    let readTextSync: System.Func<string, string, string> = Fable.Core.JsInterop.import "readFileSync" "fs"
 
-    let readAllBytes = fun (fileName:string) -> readFileSync.Invoke (metadataPath + fileName)
-    let readAllText = fun (filePath:string) -> readTextSync.Invoke (filePath, "utf8")
-#endif
+[<EntryPoint>]
+let main argv =
+    printfn "Parsing begins..."
 
     let checker = InteractiveChecker.Create(references, readAllBytes)
 
@@ -189,10 +199,15 @@ let main argv =
     printfn "projectResults Errors: %A" projectResults.Errors
     //printfn "projectResults Contents: %A" projectResults.AssemblyContents
 
-    printfn "Typed AST:"
+    printfn "Typed AST (unoptimized):"
     projectResults.AssemblyContents.ImplementationFiles
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
+    printfn "Typed AST (optimized):"
+    projectResults.OptimizedAssemblyContents.ImplementationFiles
+    |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
+
+(*
     let inputLines = source.Split('\n')
     async {
         // Get tool tip at the specified location
@@ -201,9 +216,9 @@ let main argv =
     } |> Async.StartImmediate
     async {
         // Get declarations (autocomplete) for a location
-        let partialName = { QualifyingIdents = []; PartialIdent = "msg"; EndColumn = 25; LastDotPos = None }
+        let partialName = { QualifyingIdents = []; PartialIdent = "msg"; EndColumn = 24; LastDotPos = None }
         let! decls = typeCheckResults.GetDeclarationListInfo(Some parseResults, 6, inputLines.[5], partialName, (fun _ -> []), fun _ -> false)
         [ for item in decls.Items -> item.Name ] |> printfn "---> AutoComplete = %A" // should be string methods
     } |> Async.StartImmediate
-
+*)
     0

@@ -20,6 +20,7 @@ let progress = ref false
 let tracking = ref false // intended to be a general hook to control diagnostic output when tracking down bugs
 
 #if FABLE_COMPILER
+let condition _s = false
 let GetEnvInteger _e dflt = dflt
 #else
 let condition _s = 

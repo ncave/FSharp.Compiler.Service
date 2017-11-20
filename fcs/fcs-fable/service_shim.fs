@@ -51,38 +51,29 @@ open Microsoft.FSharp.Compiler.TypeChecker
 
 type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok, reactorOps) =
 
-    static member Create(references: string list, readAllBytes: string -> byte[]) =
+    static member Create(references: string[], readAllBytes: string -> byte[]) =
 
-        //let references = ["FSharp.Core";"mscorlib";"System";"System.Core";"System.Data";"System.IO";"System.Xml";"System.Numerics"]
-
-        let IsSignatureDataResource         (r: ILResource) = 
-            r.Name.StartsWith FSharpSignatureDataResourceName ||
-            r.Name.StartsWith FSharpSignatureDataResourceName2
-
-        let GetSignatureDataResourceName    (r: ILResource) = 
-            if r.Name.StartsWith FSharpSignatureDataResourceName then 
-                String.dropPrefix r.Name FSharpSignatureDataResourceName
-            elif r.Name.StartsWith FSharpSignatureDataResourceName2 then 
-                String.dropPrefix r.Name FSharpSignatureDataResourceName2
-            else failwith "GetSignatureDataResourceName"
-
-        // load signature data
-        let GetSignatureData ((filename:string), ilScopeRef, (ilModule:ILModuleDef option), (bytes:byte[])) : TastPickle.PickledDataWithReferences<PickledCcuInfo> = 
+        let GetSignatureData ((filename:string), ilScopeRef, (ilModule:ILModuleDef option), (bytes:byte[])) = 
             TastPickle.unpickleObjWithDanglingCcus filename ilScopeRef ilModule TastPickle.unpickleCcuInfo bytes
+        let GetOptimizationData ((filename:string), ilScopeRef, (ilModule:ILModuleDef option), (bytes:byte[])) = 
+            TastPickle.unpickleObjWithDanglingCcus filename ilScopeRef ilModule Optimizer.u_CcuOptimizationInfo bytes
 
-        let tcConfig = TcConfig()
-        let tcImports = TcImports()
+        let tcConfig = TcConfig (optimize = true)
+        let tcImports = TcImports ()
         let ilGlobals = IL.EcmaMscorlibILGlobals
 
         let sigDataReaders ilModule =
-            let resources = ilModule.Resources.AsList
-            let sigDataReaders = 
-                [ for iresource in resources do
-                    if IsSignatureDataResource iresource then 
-                        let ccuName = GetSignatureDataResourceName iresource 
-                        let bytes = iresource.Bytes
-                        yield (ccuName, bytes) ]
-            sigDataReaders
+            [ for resource in ilModule.Resources.AsList do
+                if IsSignatureDataResource resource then 
+                    let ccuName = GetSignatureDataResourceName resource 
+                    yield resource.Bytes ]
+
+        let optDataReaders ilModule =
+            [ for resource in ilModule.Resources.AsList do
+                if IsOptimizationDataResource resource then
+                    let ccuName = GetOptimizationDataResourceName resource
+                    yield resource.Bytes ]
+
 
         let LoadMod ccuName =
             let fileName = ccuName + ".dll"
@@ -93,19 +84,24 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
 
         let memoize_mod = new MemoizationTable<_,_> (LoadMod, keyComparer=HashIdentity.Structural)
 
-        let LoadSig ccuName =
-            let fileName =
-                // if ccuName = "FSharp.Core" then ccuName + ".sigdata" else
-                ccuName + ".dll"
+        let LoadSigData ccuName =
+            let fileName = ccuName + ".dll" // ccuName + ".sigdata"
             let ilScopeRef = ILScopeRef.Assembly (mkSimpleAssRef ccuName)
             let ilModule = memoize_mod.Apply ccuName
-            let bytes =
-                // if ccuName = "FSharp.Core" then readAllBytes fileName else
-                sigDataReaders ilModule |> List.map snd |> List.head
-            let data = GetSignatureData (fileName, ilScopeRef, Some ilModule, bytes)
-            data
+            match sigDataReaders ilModule with
+            | [] -> None
+            | bytes::_ -> Some (GetSignatureData (fileName, ilScopeRef, Some ilModule, bytes))
 
-        let memoize_sig = new MemoizationTable<_,_> (LoadSig, keyComparer=HashIdentity.Structural)
+        let LoadOptData ccuName =
+            let fileName = ccuName + ".dll" // ccuName + ".optdata"
+            let ilScopeRef = ILScopeRef.Assembly (mkSimpleAssRef ccuName)
+            let ilModule = memoize_mod.Apply ccuName
+            match optDataReaders ilModule with
+            | [] -> None
+            | bytes::_ -> Some (GetOptimizationData (fileName, ilScopeRef, Some ilModule, bytes))
+
+        let memoize_sig = new MemoizationTable<_,_> (LoadSigData, keyComparer=HashIdentity.Structural)
+        let memoize_opt = new MemoizationTable<_,_> (LoadOptData, keyComparer=HashIdentity.Structural)
 
         let GetCustomAttributesOfIlModule (ilModule:ILModuleDef) = 
             (match ilModule.Manifest with Some m -> m.CustomAttrs | None -> ilModule.CustomAttrs).AsList 
@@ -145,7 +141,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
             ccuInfo, None
 
         let GetCcuFS m ccuName =
-            let data = memoize_sig.Apply ccuName
+            let sigdata = memoize_sig.Apply ccuName
             let ilModule = memoize_mod.Apply ccuName
             let fileName = ilModule.Name
             let ilScopeRef = ILScopeRef.Assembly (mkSimpleAssRef ccuName)
@@ -156,7 +152,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
 #if EXTENSIONTYPING
             let invalidateCcu = new Event<_>()
 #endif
-            let minfo : PickledCcuInfo = data.RawData
+            let minfo : PickledCcuInfo = sigdata.Value.RawData //TODO: handle missing sigdata
             let codeDir = minfo.compileTimeWorkingDir
             let ccuData : CcuData = 
                   { ILScopeRef = ilScopeRef
@@ -175,9 +171,18 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                     MemberSignatureEquality = (fun ty1 ty2 -> Tastops.typeEquivAux EraseAll (tcImports.GetTcGlobals()) ty1 ty2)
                     TypeForwarders = Import.ImportILAssemblyTypeForwarders(tcImports.GetImportMap, m, GetRawTypeForwarders ilModule)
                     }
+
+            let optdata = lazy (
+                match memoize_opt.Apply ccuName with 
+                | None -> None
+                | Some data ->
+                    let findCcuInfo name = tcImports.FindCcu (m, name)
+                    Some (data.OptionalFixup findCcuInfo) )
+
             let ccu = CcuThunk.Create(ccuName, ccuData)
             let ccuInfo = mkCcuInfo ilGlobals ilScopeRef ilModule ccu
-            ccuInfo, Some data
+            let ccuOptInfo = { ccuInfo with FSharpOptimizationData = optdata }
+            ccuOptInfo, sigdata
 
         let rec GetCcu m ccuName =
             let ilModule = memoize_mod.Apply ccuName
@@ -198,7 +203,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
             refCcus
 
         let m = range.Zero
-        let refCcusUnfixed = references |> List.map (GetCcu m)
+        let refCcusUnfixed = List.ofArray references |> List.map (GetCcu m)
         let refCcus = fixupCcuInfo refCcusUnfixed
         let sysCcus = refCcus |> List.filter (fun x -> x.FSharpViewOfMetadata.AssemblyName <> "FSharp.Core")
         let fslibCcu = refCcus |> List.find (fun x -> x.FSharpViewOfMetadata.AssemblyName = "FSharp.Core")
@@ -207,7 +212,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
         let ccuMap = ccuInfos |> List.map (fun ccuInfo -> ccuInfo.FSharpViewOfMetadata.AssemblyName, ccuInfo) |> Map.ofList
 
         // search over all imported CCUs for each cached type
-        let ccuHasType (ccu : CcuThunk) (nsname : string list) (tname : string) =
+        let ccuHasType (ccu: CcuThunk) (nsname: string list) (tname: string) =
             match (Some ccu.Contents, nsname) ||> List.fold (fun entityOpt n -> match entityOpt with None -> None | Some entity -> entity.ModuleOrNamespaceType.AllEntitiesByCompiledAndLogicalMangledNames.TryFind n) with
             | Some ns ->
                     match Map.tryFind tname ns.ModuleOrNamespaceType.TypesByMangledName with
@@ -224,9 +229,11 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                 printfn "Cannot find type %s.%s" (String.concat "." nsname) typeName
                 None
 
-        let tcGlobals = TcGlobals(tcConfig.compilingFslib, ilGlobals, fslibCcu.FSharpViewOfMetadata,
-                                    tcConfig.implicitIncludeDir, tcConfig.mlCompatibility,
-                                    tcConfig.isInteractive, tryFindSysTypeCcu, tcConfig.emitDebugInfoInQuotations, tcConfig.noDebugData )
+        let tcGlobals = TcGlobals (
+                            tcConfig.compilingFslib, ilGlobals, fslibCcu.FSharpViewOfMetadata,
+                            tcConfig.implicitIncludeDir, tcConfig.mlCompatibility,
+                            tcConfig.isInteractive, tryFindSysTypeCcu,
+                            tcConfig.emitDebugInfoInQuotations, tcConfig.noDebugData)
 
 #if DEBUG
         // the global_g reference cell is used only for debug printing
@@ -288,7 +295,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
         | tcErrors, Parser.TypeCheckAborted.No scope, tcImplFiles ->
             let errors = [|  yield! parseResults.Errors; yield! tcErrors |]
             let typeCheckResults = FSharpCheckFileResults (mainInputFileName, errors, Some scope, parseResults.DependencyFiles, None, reactorOps, true)   
-            let projectResults = FSharpCheckProjectResults (mainInputFileName, true, errors, Some(tcGlobals, tcImports, scope.ThisCcu, scope.CcuSig, [scope.ScopeSymbolUses], None, None, mkSimpleAssRef "stdin", tcState.TcEnvFromImpls.AccessRights, Some tcImplFiles, parseResults.DependencyFiles), reactorOps)
+            let projectResults = FSharpCheckProjectResults (mainInputFileName, Some tcConfig, true, errors, Some(tcGlobals, tcImports, scope.ThisCcu, scope.CcuSig, [scope.ScopeSymbolUses], None, None, mkSimpleAssRef "stdin", tcState.TcEnvFromImpls.AccessRights, Some tcImplFiles, parseResults.DependencyFiles), reactorOps)
             parseResults, typeCheckResults, projectResults
         | _ -> 
             failwith "unexpected aborted"

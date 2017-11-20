@@ -2,6 +2,10 @@
 
 module internal Microsoft.FSharp.Compiler.Detuple 
 
+#if FABLE_COMPILER
+open Internal.Utilities
+open Microsoft.FSharp.Core.Operators
+#endif
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library 
@@ -466,7 +470,7 @@ let mkTransform g (f:Val) m tps x1Ntys rty (callPattern,tyfringes: (TType list *
                         let baseName = match vs with [v] -> v.LogicalName | _ -> "arg"
                         let baseRange = match vs with [v] -> v.Range | _ -> m
                         tyfringe |> List.mapi (fun i ty -> 
-                            let name = baseName ^ string i
+                            let name = baseName + string i
                             mkCompGenLocal baseRange name ty |> fst)
                         
                 NewArgs (vs,rebuildTS g m cpi vs))
@@ -641,14 +645,14 @@ type env =
       prefix : string
       m      : Range.range }
 
-let suffixE env s = {env with prefix = env.prefix ^ s}
+let suffixE env s = {env with prefix = env.prefix + s}
 let rangeE  env m = {env with m = m}
 
 let push  b  bs = b::bs
 let pushL xs bs = xs@bs
 
 let newLocal  env   ty = mkCompGenLocal env.m env.prefix ty
-let newLocalN env i ty = mkCompGenLocal env.m (env.prefix ^ string i) ty
+let newLocalN env i ty = mkCompGenLocal env.m (env.prefix + string i) ty
 
 let noEffectExpr env bindings x =
     match x with

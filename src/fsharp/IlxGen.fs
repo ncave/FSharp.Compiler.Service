@@ -1031,9 +1031,12 @@ let GenPossibleILSourceMarker cenv m =
 // Helpers for merging property definitions
 //--------------------------------------------------------------------------
 
+#if FABLE_COMPILER
+let HashRangeSorted (ht: IEnumerable<KeyValuePair<_, (int * _)>>) = 
+#else
 let HashRangeSorted (ht: IDictionary<_, (int * _)>) = 
+#endif
     [ for KeyValue(_k,v) in ht -> v ] |> List.sortBy fst |> List.map snd 
-
 let MergeOptions m o1 o2 = 
     match o1,o2 with
     | Some x, None | None, Some x -> Some x
@@ -7002,6 +7005,8 @@ let defaultOf =
            | _ -> failwith "unexpected failure decoding quotation at ilxgen startup")
     fun ty -> gminfo.Value.MakeGenericMethod([| ty |]).Invoke(null,[| |])
     
+#if !FABLE_COMPILER
+
 /// Top-level val bindings are stored (for example) in static fields.
 /// In the FSI case, these fields are be created and initialised, so we can recover the object.
 /// IlxGen knows how v was stored, and then ilreflect knows how this storage was generated.
@@ -7097,6 +7102,7 @@ let LookupGeneratedInfo (ctxt: ExecutionContext) (g:TcGlobals) eenv (v:Val) =
     
 *)
     
+#endif //!FABLE_COMPILER
 
 /// The published API from the ILX code generator
 type IlxAssemblyGenerator(amap: ImportMap, tcGlobals: TcGlobals, tcVal : ConstraintSolver.TcValF, ccu: Tast.CcuThunk) = 
@@ -7129,11 +7135,13 @@ type IlxAssemblyGenerator(amap: ImportMap, tcGlobals: TcGlobals, tcVal : Constra
               optimizeDuringCodeGen = (fun x -> x) }
         GenerateCode (cenv, ilxGenEnv, typedAssembly, assemAttribs, moduleAttribs)
 
+#if !FABLE_COMPILER
     /// Invert the compilation of the given value and clear the storage of the value
     member __.ClearGeneratedValue (ctxt, v) = ClearGeneratedValue ctxt tcGlobals ilxGenEnv v
 
     /// Invert the compilation of the given value and return its current dynamic value and its compiled System.Type
     member __.LookupGeneratedValue (ctxt, v) = LookupGeneratedValue amap ctxt ilxGenEnv v
+#endif //!FABLE_COMPILER
 
     /// Create the CAS permission sets for an assembly fragment
     member __.CreatePermissionSets attribs = CreatePermissionSets tcGlobals amap ilxGenEnv attribs

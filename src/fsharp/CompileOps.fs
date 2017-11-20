@@ -3771,6 +3771,7 @@ type TcAssemblyResolutions(results : AssemblyResolution list, unresolved : Unres
         let references = resolutions |> List.map (fun r -> r.originalReference)
         TcAssemblyResolutions.ResolveAssemblyReferences (ctok, tcConfig, references, knownUnresolved)
             
+#endif //!FABLE_COMPILER
 
 //----------------------------------------------------------------------------
 // Typecheck and optimization environments on disk
@@ -3797,6 +3798,8 @@ let GetOptimizationDataResourceName (r: ILResource) =
     elif r.Name.StartsWith FSharpOptimizationDataResourceName2 then 
         String.dropPrefix r.Name FSharpOptimizationDataResourceName2
     else failwith "GetOptimizationDataResourceName"
+
+#if !FABLE_COMPILER
 
 let IsReflectedDefinitionsResource  (r: ILResource) = r.Name.StartsWith QuotationPickler.SerializedReflectedDefinitionsResourceNameBase
 
@@ -5353,15 +5356,16 @@ type AssemblyResolution =
       sysdir : bool 
       ilAssemblyRef : ILAssemblyRef option ref
     }
-// cut-down LoadClosure
+
+// cut-down version of LoadClosure
 type LoadClosure = 
     {
       SourceFiles: (string * range list) list
       References: (string * AssemblyResolution list) list
     }
 
-// cut-down TcConfig
-type TcConfig() =
+// cut-down version of TcConfig
+type TcConfig (optimize: bool) =
 #if TODO_REWORK_ASSEMBLY_LOAD
     member x.primaryAssembly = PrimaryAssembly.DotNetCore
 #else
@@ -5377,8 +5381,21 @@ type TcConfig() =
     member x.errorSeverityOptions = FSharpErrorSeverityOptions.Default
     member x.light = Some true
     member x.target = CompilerTarget.WinExe
+    member x.extraOptimizationIterations = if optimize then 0 else 0
+#if DEBUG
+    member x.showOptimizationData = false
+#endif
+    member x.doDetuple = optimize
+    member x.doTLR = optimize
+    member x.doFinalSimplify = optimize
+    member x.optSettings = { Optimizer.OptimizationSettings.Defaults with
+                                jitOptUser = Some optimize
+                                localOptUser = Some optimize
+                                crossModuleOptUser = Some optimize
+                                lambdaInlineThreshold = if optimize then 6 else 0 }
+    member x.emitTailcalls = true
 
-// cut-down TcImports
+// cut-down version of TcImports
 type TcImports() =
     let mutable tcGlobalsOpt = None
     let mutable ccuMap = Map<string, ImportedAssembly>([])
@@ -5388,6 +5405,11 @@ type TcImports() =
         match ccuMap |> Map.tryFind assemblyName with
         | Some ccuInfo -> ResolvedCcu(ccuInfo.FSharpViewOfMetadata)
         | None -> UnresolvedCcu(assemblyName)
+
+    member x.FindCcu (_, assemblyName) =
+        match ccuMap |> Map.tryFind assemblyName with
+        | Some ccuInfo -> Some ccuInfo.FSharpViewOfMetadata
+        | None -> None
 
     member x.SetTcGlobals g =
         tcGlobalsOpt <- Some g
