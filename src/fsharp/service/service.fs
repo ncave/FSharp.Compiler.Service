@@ -1873,18 +1873,18 @@ type FSharpCheckProjectResults(projectFileName:string, tcConfigOption, keepAssem
 
     member info.AssemblyContents = FSharpAssemblyContents(info.TypedImplementionFiles)
 
-    member info.OptimizedAssemblyContents = 
+    member info.GetOptimizedAssemblyContents() =  
         let tcGlobals, thisCcu, tcImports, mimpls = info.TypedImplementionFiles
-        let outfile = null
+        let outfile = "" // only used if tcConfig.writeTermsToFiles is true
         let importMap = tcImports.GetImportMap()
         let optEnv0 = GetInitialOptimizationEnv (tcImports, tcGlobals)
         let tcConfig = getTcConfig()
-        let optimizedImpls, _optimizationData, _ =
-            ApplyAllOptimizations (tcConfig, tcGlobals, (LightweightTcValForUsingInBuildMethodCall tcGlobals), outfile, importMap, false, optEnv0, thisCcu, mimpls)
+        let optimizedImpls, _optimizationData, _ = ApplyAllOptimizations (tcConfig, tcGlobals, (LightweightTcValForUsingInBuildMethodCall tcGlobals), outfile, importMap, false, optEnv0, thisCcu, mimpls)                
         let mimpls =
             match optimizedImpls with
             | TypedAssemblyAfterOptimization files ->
                 files |> List.map fst
+
         FSharpAssemblyContents(tcGlobals, thisCcu, tcImports, mimpls)
 
     // Not, this does not have to be a SyncOp, it can be called from any thread

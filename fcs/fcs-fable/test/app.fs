@@ -204,7 +204,7 @@ let main argv =
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
     printfn "Typed AST (optimized):"
-    projectResults.OptimizedAssemblyContents.ImplementationFiles
+    projectResults.GetOptimizedAssemblyContents().ImplementationFiles
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
 (*
