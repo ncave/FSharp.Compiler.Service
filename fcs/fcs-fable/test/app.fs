@@ -12,9 +12,10 @@ let metadataPath =
 
 let references =
     if use_net45_meta then
-      [|"Fable.Core";"FSharp.Core";"mscorlib";"System";"System.Core";"System.Data";"System.IO";"System.Xml";"System.Numerics"|]
+      [|"Fable.Core";"Fable.Import.Browser";"FSharp.Core";"mscorlib";"System";"System.Core";"System.Data";"System.IO";"System.Xml";"System.Numerics"|]
     else
       [|"Fable.Core"
+        "Fable.Import.Browser"
         "FSharp.Core"
         "Microsoft.CSharp"
         "Microsoft.VisualBasic"
@@ -203,22 +204,26 @@ let main argv =
     projectResults.AssemblyContents.ImplementationFiles
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
-    printfn "Typed AST (optimized):"
-    projectResults.GetOptimizedAssemblyContents().ImplementationFiles
-    |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
+    // printfn "Typed AST (optimized):"
+    // projectResults.GetOptimizedAssemblyContents().ImplementationFiles
+    // |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
-(*
     let inputLines = source.Split('\n')
+
     async {
         // Get tool tip at the specified location
-        let! tip = typeCheckResults.GetToolTipText(3, 7, inputLines.[2], ["foo"], FSharpTokenTag.IDENT)
-        (sprintf "%A" tip).Replace("\n","") |> printfn "---> ToolTip Text = %A" // should be "FSharpToolTipText [...]"
-    } |> Async.StartImmediate
-    async {
-        // Get declarations (autocomplete) for a location
-        let partialName = { QualifyingIdents = []; PartialIdent = "msg"; EndColumn = 24; LastDotPos = None }
+        let! tip = typeCheckResults.GetToolTipText(4, 7, inputLines.[3], ["foo"], FSharpTokenTag.IDENT)
+        (sprintf "%A" tip).Replace("\n","") |> printfn "\n---> ToolTip Text = %A" // should be "FSharpToolTipText [...]"
+
+        // Get declarations (autocomplete) for msg
+        let partialName = { QualifyingIdents = []; PartialIdent = "msg"; EndColumn = 17; LastDotPos = None }
         let! decls = typeCheckResults.GetDeclarationListInfo(Some parseResults, 6, inputLines.[5], partialName, (fun _ -> []), fun _ -> false)
-        [ for item in decls.Items -> item.Name ] |> printfn "---> AutoComplete = %A" // should be string methods
+        [ for item in decls.Items -> item.Name ] |> printfn "\n---> msg AutoComplete = %A" // should be string methods
+
+        // Get declarations (autocomplete) for canvas
+        let partialName = { QualifyingIdents = []; PartialIdent = "canvas"; EndColumn = 10; LastDotPos = None }
+        let! decls = typeCheckResults.GetDeclarationListInfo(Some parseResults, 8, inputLines.[7], partialName, (fun _ -> []), fun _ -> false)
+        [ for item in decls.Items -> item.Name ] |> printfn "\n---> canvas AutoComplete = %A"
     } |> Async.StartImmediate
-*)
+
     0
