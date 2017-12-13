@@ -44,9 +44,14 @@ module Symbol =
             && name.Substring (2, name.Length - 4) 
                 |> String.forall (fun c -> c <> ' ' && not (Char.IsLetter c))
 
+#if FABLE_COMPILER
+    let isUnnamedUnionCaseField (field: FSharpField) =
+        (field.Name.StartsWith "Item") && not (field.Name.Substring(4) |> String.exists (fun c -> not (Char.IsDigit c)))
+#else
     let UnnamedUnionFieldRegex = Regex("^Item(\d+)?$", RegexOptions.Compiled)
     
     let isUnnamedUnionCaseField (field: FSharpField) = UnnamedUnionFieldRegex.IsMatch(field.Name)
+#endif
 
     let (|AbbreviatedType|_|) (entity: FSharpEntity) =
         if entity.IsFSharpAbbreviation then Some entity.AbbreviatedType
