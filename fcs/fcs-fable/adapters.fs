@@ -233,9 +233,8 @@ module Microsoft =
                         member __.Equals(x,y) = eq x y  }
                 let inline Structural<'T when 'T : equality> : IEqualityComparer<'T> =
                     FromFunctions LanguagePrimitives.GenericHash LanguagePrimitives.GenericEquality
-                let Reference<'T when 'T : not struct > : IEqualityComparer<'T> = //TODO: proper implementation
-                    FromFunctions LanguagePrimitives.GenericHash LanguagePrimitives.PhysicalEquality
-                    // FromFunctions LanguagePrimitives.PhysicalHash LanguagePrimitives.PhysicalEquality
+                let Reference<'T when 'T : not struct > : IEqualityComparer<'T> =
+                    FromFunctions LanguagePrimitives.PhysicalHash LanguagePrimitives.PhysicalEquality
 
             module ComparisonIdentity = 
                 let inline FromFunction comparer = 
@@ -251,8 +250,6 @@ module Microsoft =
             module LanguagePrimitives =
                 let FastGenericComparer<'T when 'T : comparison> =
                     Collections.ComparisonIdentity.Structural<'T>
-                let PhysicalHash =
-                    LanguagePrimitives.GenericHash //TODO: proper implementation
 
             module Operators =
                 let (|Failure|_|) (exn: exn) = Some exn.Message
