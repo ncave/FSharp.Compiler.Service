@@ -6,9 +6,9 @@ let use_net45_meta = false
 
 let metadataPath =
     if use_net45_meta then
-        "/temp/metadata/"  // dotnet 4.5 binaries
+        "/temp/repl/metadata/"  // dotnet 4.5 binaries
     else 
-        "/temp/metadata2/" // dotnet core 2.0 binaries
+        "/temp/repl/metadata2/" // dotnet core 2.0 binaries
 
 let references =
     if use_net45_meta then
