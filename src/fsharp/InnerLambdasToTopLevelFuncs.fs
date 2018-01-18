@@ -2,19 +2,11 @@
 
 module internal Microsoft.FSharp.Compiler.InnerLambdasToTopLevelFuncs 
 
-<<<<<<< HEAD
 open Microsoft.FSharp.Compiler 
 #if FABLE_COMPILER
 open Internal.Utilities
 open Microsoft.FSharp.Core.Operators
 #endif
-=======
-#if FABLE_COMPILER
-open Internal.Utilities
-open Microsoft.FSharp.Core.Operators
-#endif
-open Microsoft.FSharp.Compiler.AbstractIL 
->>>>>>> loading optdata
 open Microsoft.FSharp.Compiler.AbstractIL.Internal 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library 
 open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics

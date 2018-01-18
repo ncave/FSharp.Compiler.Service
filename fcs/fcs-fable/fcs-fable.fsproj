@@ -6,7 +6,6 @@
   <PropertyGroup>
     <TargetFramework>netstandard1.6</TargetFramework>
     <DefineConstants>$(DefineConstants);FABLE_COMPILER</DefineConstants>
-    <DefineConstants>$(DefineConstants);COMPILER_PUBLIC_API</DefineConstants>
     <DefineConstants>$(DefineConstants);FX_NO_CORHOST_SIGNER</DefineConstants>
     <DefineConstants>$(DefineConstants);FX_NO_LINKEDRESOURCES</DefineConstants>
     <DefineConstants>$(DefineConstants);FX_NO_PDB_READER</DefineConstants>
@@ -14,6 +13,7 @@
     <DefineConstants>$(DefineConstants);FX_NO_WEAKTABLE</DefineConstants>
     <DefineConstants>$(DefineConstants);FX_REDUCED_EXCEPTIONS</DefineConstants>
     <DefineConstants>$(DefineConstants);NO_COMPILER_BACKEND</DefineConstants>
+    <DefineConstants>$(DefineConstants);NO_EXTENSIONTYPING</DefineConstants>
     <DefineConstants>$(DefineConstants);NO_INLINE_IL_PARSER</DefineConstants>
     <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>
   </PropertyGroup>
@@ -24,7 +24,7 @@
     <Compile Include="adapters.fs"/>
     <Compile Include="codegen/FSComp.fs"/>
     <Compile Include="codegen/FSIstrings.fs"/>
-    <!-- <Compile Include="$(FSharpSourcesRoot)/assemblyinfo/assemblyinfo.FSharp.Compiler.Service.dll.fs"/> -->
+    <!-- <Compile Include="../FSharp.Compiler.Service/AssemblyInfo.fs"/> -->
     <!-- <Compile Include="$(FSharpSourcesRoot)/utils/reshapedreflection.fs"/> -->
     <Compile Include="$(FSharpSourcesRoot)/utils/sformat.fsi"/>
     <Compile Include="$(FSharpSourcesRoot)/utils/sformat.fs"/>
@@ -170,40 +170,40 @@
     <Compile Include="$(FSharpSourcesRoot)/fsharp/symbols/Exprs.fs"/>
     <Compile Include="$(FSharpSourcesRoot)/fsharp/symbols/SymbolPatterns.fsi"/>
     <Compile Include="$(FSharpSourcesRoot)/fsharp/symbols/SymbolPatterns.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/IncrementalBuild.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/IncrementalBuild.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/Reactor.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/Reactor.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceConstants.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceLexing.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceLexing.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceParseTreeWalk.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceNavigation.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceNavigation.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceParamInfoLocations.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceParamInfoLocations.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceUntypedParse.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceUntypedParse.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/IncrementalBuild.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/IncrementalBuild.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/Reactor.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/Reactor.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceConstants.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceLexing.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceLexing.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceParseTreeWalk.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceNavigation.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceNavigation.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceParamInfoLocations.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceParamInfoLocations.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceUntypedParse.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceUntypedParse.fs"/>
     <!-- <Compile Include="$(FSharpSourcesRoot)/utils/reshapedmsbuild.fs"/> -->
     <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/SimulatedMSBuildReferenceResolver.fs"/> -->
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceDeclarationLists.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceDeclarationLists.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceAssemblyContent.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceAssemblyContent.fs"/>
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceXmlDocParser.fsi"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceXmlDocParser.fs"/> -->
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ExternalSymbol.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ExternalSymbol.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/QuickParse.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/QuickParse.fs"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/service.fsi"/>
-    <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/service.fs"/>
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceInterfaceStubGenerator.fsi"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceInterfaceStubGenerator.fs"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceStructure.fsi"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceStructure.fs"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceAnalysis.fsi"/> -->
-    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/vs/ServiceAnalysis.fs"/> -->
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceDeclarationLists.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceDeclarationLists.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceAssemblyContent.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceAssemblyContent.fs"/>
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceXmlDocParser.fsi"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceXmlDocParser.fs"/> -->
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ExternalSymbol.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ExternalSymbol.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/QuickParse.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/QuickParse.fs"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/service.fsi"/>
+    <Compile Include="$(FSharpSourcesRoot)/fsharp/service/service.fs"/>
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceInterfaceStubGenerator.fsi"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceInterfaceStubGenerator.fs"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceStructure.fsi"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceStructure.fs"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceAnalysis.fsi"/> -->
+    <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/service/ServiceAnalysis.fs"/> -->
     <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/fsi/fsi.fsi"/> -->
     <!-- <Compile Include="$(FSharpSourcesRoot)/fsharp/fsi/fsi.fs"/> -->
     <Compile Include="service_shim.fs"/>

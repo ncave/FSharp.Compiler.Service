@@ -9,7 +9,6 @@ const fableOptions = {
   //babel: babelOptions,
   //plugins: [],
   define: [
-    "COMPILER_PUBLIC_API",
     "FX_NO_CORHOST_SIGNER",
     "FX_NO_LINKEDRESOURCES",
     "FX_NO_PDB_READER",
@@ -17,6 +16,7 @@ const fableOptions = {
     "FX_NO_WEAKTABLE",
     "FX_REDUCED_EXCEPTIONS",
     "NO_COMPILER_BACKEND",
+    "NO_EXTENSIONTYPING",
     "NO_INLINE_IL_PARSER"
   ]
 };
