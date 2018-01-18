@@ -542,7 +542,6 @@ and FSharpEntity(cenv:cenv, entity:EntityRef) =
         if isUnresolved() then XmlDoc.Empty  |> makeXmlDoc else
         entity.XmlDoc |> makeXmlDoc
 
-#if EXTENSIONTYPING
     member x.StaticParameters = 
         match entity.TypeReprInfo with 
 #if !NO_EXTENSIONTYPING
@@ -555,7 +554,6 @@ and FSharpEntity(cenv:cenv, entity:EntityRef) =
 #endif
         | _ -> [| |]
       |> makeReadOnlyCollection
-#endif
 
     member __.NestedEntities = 
         if isUnresolved() then makeReadOnlyCollection[] else

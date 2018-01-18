@@ -464,7 +464,7 @@ module internal DescriptionListsImpl =
             let pinfo = List.head pinfos 
             if pinfo.IsIndexer then [item] else []
 #if !NO_EXTENSIONTYPING
-        | SymbolHelpers.ItemIsWithStaticArguments m g _ -> 
+        | SymbolHelpers.ItemIsWithStaticArguments _m g _ -> 
             // we pretend that provided-types-with-static-args are method-like in order to get ParamInfo for them
             [item] 
 #endif

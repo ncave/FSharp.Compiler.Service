@@ -37,7 +37,7 @@ module AstPrint =
                 if v.IsFSharpUnion then yield "union"
                 if v.IsInterface then yield "interface"
                 if v.IsMeasure then yield "measure"
-#if EXTENSIONTYPING
+#if !NO_EXTENSIONTYPING
                 if v.IsProvided then yield "provided"
                 if v.IsStaticInstantiation then yield "static_inst"
                 if v.IsProvidedAndErased then yield "erased"

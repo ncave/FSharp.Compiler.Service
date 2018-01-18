@@ -121,7 +121,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                 FSharpViewOfMetadata = ccu
                 AssemblyAutoOpenAttributes = GetAutoOpenAttributes ilg ilModule
                 AssemblyInternalsVisibleToAttributes = GetInternalsVisibleToAttributes ilg ilModule
-#if EXTENSIONTYPING
+#if !NO_EXTENSIONTYPING
                 IsProviderGenerated = false
                 TypeProviders = []
 #endif
@@ -149,7 +149,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                 match ilModule.Manifest with 
                 | Some manifest -> manifest.ExportedTypes
                 | None -> mkILExportedTypes []
-#if EXTENSIONTYPING
+#if !NO_EXTENSIONTYPING
             let invalidateCcu = new Event<_>()
 #endif
             let minfo : PickledCcuInfo = sigdata.Value.RawData //TODO: handle missing sigdata
@@ -162,7 +162,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                     SourceCodeDirectory = codeDir
                     IsFSharp = true
                     Contents = minfo.mspec
-#if EXTENSIONTYPING
+#if !NO_EXTENSIONTYPING
                     InvalidateEvent=invalidateCcu.Publish
                     IsProviderGenerated = false
                     ImportProvidedType = (fun ty -> Import.ImportProvidedType (tcImports.GetImportMap()) m ty)
