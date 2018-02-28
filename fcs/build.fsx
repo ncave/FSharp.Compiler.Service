@@ -101,6 +101,18 @@ Target "NuGet" (fun _ ->
     runDotnet __SOURCE_DIRECTORY__ "pack FSharp.Compiler.Service.sln -v n -c Release"
 )
 
+Target "CodeGen.Fable" (fun _ ->
+    let outDir = "./fcs-fable/codegen/"
+
+    // run FCS codegen (except that fssrgen runs without .resx output to inline it)
+    runDotnet __SOURCE_DIRECTORY__ (sprintf "build %s%s" outDir "codegen.fsproj")
+
+    // Fable-specific (comment the #line directive as it is not supported)
+    ["lex.fs"; "pplex.fs"; "illex.fs"; "ilpars.fs"; "pars.fs"; "pppars.fs"]
+    |> Seq.map (fun fileName -> outDir + fileName)
+    |> RegexReplaceInFilesWithEncoding @"# (?=\d)" "//# " Text.Encoding.UTF8
+)
+
 Target "GenerateDocsEn" (fun _ ->
     executeFSIWithArgs "docsrc/tools" "generate.fsx" [] [] |> ignore
 )
@@ -127,6 +139,10 @@ Target "Start" DoNothing
 Target "Release" DoNothing
 Target "GenerateDocs" DoNothing
 Target "TestAndNuGet" DoNothing
+
+"Clean"
+  ==> "Restore"
+  ==> "CodeGen.Fable"
 
 "Start"
   =?> ("BuildVersion", isAppVeyorBuild)

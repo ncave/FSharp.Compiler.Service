@@ -73,11 +73,13 @@ type public IlxAssemblyGenerator =
     /// Create the CAS permission sets for an assembly fragment
     member CreatePermissionSets : Attrib list ->  ILPermission list
 
+#if !FABLE_COMPILER
     /// Invert the compilation of the given value and clear the storage of the value
     member ClearGeneratedValue : ExecutionContext * Val -> unit
 
     /// Invert the compilation of the given value and return its current dynamic value and its compiled System.Type
     member LookupGeneratedValue : ExecutionContext * Val -> (obj * System.Type) option
+#endif //!FABLE_COMPILER
 
 
 val ReportStatistics : TextWriter -> unit
