@@ -1628,7 +1628,7 @@ module internal Parser =
             match parseResults.ParseTree with 
             // When processing the following cases, we don't need to type-check
 #if FABLE_COMPILER
-            | None -> [||], TypeCheckAborted.Yes, []
+            | None -> [||], TypeCheckAborted.Yes
 #else
             | None -> return [||], TypeCheckAborted.Yes
 #endif
@@ -1720,18 +1720,18 @@ module internal Parser =
                 let sink = TcResultsSinkImpl(tcGlobals, source = source)
 #if FABLE_COMPILER
                 ignore userOpName
-                let tcEnvAtEndOpt =
+                let resOpt =
                     try
                         let ctok = AssumeCompilationThreadWithoutEvidence()
                         let checkForErrors() = (parseResults.ParseHadErrors || errHandler.ErrorCount > 0)
-                        let (tcEnvAtEnd, _, typedImplFiles), tcState =
-                            TypeCheckOneInputAndFinishEventually(checkForErrors,tcConfig, tcImports, tcGlobals, None, TcResultsSink.WithSink sink, tcState, parsedMainInput)
+                        let (tcEnvAtEnd, _, implFiles, ccuSigsForFiles), tcState =
+                            TypeCheckOneInputAndFinishEventually(checkForErrors, tcConfig, tcImports, tcGlobals, None, TcResultsSink.WithSink sink, tcState, parsedMainInput)
                             |> Eventually.force ctok
-                        Some (tcEnvAtEnd, typedImplFiles, tcState)
+                        Some (tcEnvAtEnd, implFiles, ccuSigsForFiles, tcState)
                     with
                     | e ->
                         errorR e
-                        Some(tcState.TcEnvFromSignatures, [], tcState)
+                        Some(tcState.TcEnvFromSignatures, [], [NewEmptyModuleOrNamespaceType Namespace], tcState)
 #else //!FABLE_COMPILER
                 let! ct = Async.CancellationToken
             
@@ -1785,10 +1785,14 @@ module internal Parser =
                                       textSnapshotInfo,
                                       List.tryHead implFiles,
                                       sink.GetOpenDeclarations())     
+#if FABLE_COMPILER
+                    errors, TypeCheckAborted.No scope
+                | None -> 
+                    errors, TypeCheckAborted.Yes
+#else
                     return errors, TypeCheckAborted.No scope
                 | None -> 
                     return errors, TypeCheckAborted.Yes
-#if !FABLE_COMPILER
         }
 #endif
 
@@ -1860,7 +1864,7 @@ type FSharpCheckProjectResults(projectFileName:string, tcConfigOption, keepAssem
         | Some d -> d
 
 #if FABLE_COMPILER
-    new (projectFileName, tcConfigOption, keepAssemblyContents, errors, details, reactorOps, _) = FSharpCheckProjectResults(projectFileName, tcConfigOption, keepAssemblyContents, errors, details, reactorOps)
+    new (projectFileName, tcConfigOption, keepAssemblyContents, errors, details, _) = FSharpCheckProjectResults(projectFileName, tcConfigOption, keepAssemblyContents, errors, details)
 #endif
 
     member info.Errors = errors

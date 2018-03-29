@@ -52,9 +52,9 @@ let main argv =
     projectResults.AssemblyContents.ImplementationFiles
     |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
-    // printfn "Typed AST (optimized):"
-    // projectResults.GetOptimizedAssemblyContents().ImplementationFiles
-    // |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
+    printfn "Typed AST (optimized):"
+    projectResults.GetOptimizedAssemblyContents().ImplementationFiles
+    |> Seq.iter (fun file -> AstPrint.printFSharpDecls "" file.Declarations |> Seq.iter (printfn "%s"))
 
     let inputLines = source.Split('\n')
 

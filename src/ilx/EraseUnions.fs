@@ -613,7 +613,7 @@ let mkMethodsAndPropertiesForFields (addMethodGeneratedAttrs, addPropertyGenerat
     let basicProps = 
         fields 
         |> Array.map (fun field -> 
-            ILPropertyDef(name = adjustFieldName hasHelpers field.Name,
+            ILPropertyDef.Create(name = adjustFieldName hasHelpers field.Name,
                           attributes = PropertyAttributes.None,
                           setMethod = None,
                           getMethod = Some (mkILMethRef (typ.TypeRef, ILCallingConv.Instance, "get_" + adjustFieldName hasHelpers field.Name, 0, [], field.Type)),
@@ -697,7 +697,7 @@ let convAlternativeDef (addMethodGeneratedAttrs, addPropertyGeneratedAttrs, addP
                           mkMethodBody(true,[],2,nonBranchingInstrsToCode 
                                     ([ mkLdarg0 ] @ mkIsData ilg (true, cuspec, num)), attr))
                       |> addMethodGeneratedAttrs ],
-                    [ ILPropertyDef(name = mkTesterName altName,
+                    [ ILPropertyDef.Create(name = mkTesterName altName,
                                     attributes = PropertyAttributes.None,
                                     setMethod = None,
                                     getMethod = Some (mkILMethRef (baseTy.TypeRef, ILCallingConv.Instance, "get_" + mkTesterName altName, 0, [], ilg.typ_Bool)),
@@ -725,7 +725,7 @@ let convAlternativeDef (addMethodGeneratedAttrs, addPropertyGeneratedAttrs, addP
 
                     let nullaryProp = 
                          
-                        ILPropertyDef(name = altName,
+                        ILPropertyDef.Create(name = altName,
                                       attributes = PropertyAttributes.None,
                                       setMethod = None,
                                       getMethod = Some (mkILMethRef (baseTy.TypeRef, ILCallingConv.Static, "get_" + altName, 0, [], baseTy)),
@@ -826,7 +826,7 @@ let convAlternativeDef (addMethodGeneratedAttrs, addPropertyGeneratedAttrs, addP
                     let debugProxyGetterProps =
                         fields 
                         |> Array.map (fun fdef -> 
-                            ILPropertyDef(name = fdef.Name,
+                            ILPropertyDef.Create(name = fdef.Name,
                                           attributes = PropertyAttributes.None,
                                           setMethod = None,
                                           getMethod = Some(mkILMethRef(debugProxyTy.TypeRef,ILCallingConv.Instance,"get_" + fdef.Name,0,[],fdef.Type)),
@@ -1038,7 +1038,7 @@ let mkClassUnionDef (addMethodGeneratedAttrs, addPropertyGeneratedAttrs, addProp
               [ mkILNonGenericInstanceMethod("get_" + tagPropertyName,cud.cudHelpersAccess,[],mkILReturn tagFieldType,body) 
                 |> addMethodGeneratedAttrs ], 
           
-              [ ILPropertyDef(name = tagPropertyName,
+              [ ILPropertyDef.Create(name = tagPropertyName,
                               attributes = PropertyAttributes.None,
                               setMethod = None,
                               getMethod = Some(mkILMethRef(baseTy.TypeRef,ILCallingConv.Instance,"get_" + tagPropertyName,0,[], tagFieldType)),
@@ -1065,7 +1065,7 @@ let mkClassUnionDef (addMethodGeneratedAttrs, addPropertyGeneratedAttrs, addProp
             None
         else
             let tdef = 
-                ILTypeDef(name = "Tags",
+                ILTypeDef.Create(name = "Tags",
                           nestedTypes = emptyILTypeDefs,
                           genericParams= td.GenericParams,
                           attributes = enum 0,

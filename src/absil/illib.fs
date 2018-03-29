@@ -9,6 +9,7 @@ open Internal.Utilities
 open Microsoft.FSharp.Collections
 open Microsoft.FSharp.Core
 open Microsoft.FSharp.Core.Operators
+open Microsoft.FSharp.Control
 #endif
 open System
 open System.Collections
@@ -1338,6 +1339,8 @@ module Shim =
 
     let mutable FileSystem = DefaultFileSystem() :> IFileSystem 
 
+#if !FABLE_COMPILER
+
     type File with 
         static member ReadBinaryChunk (fileName, start, len) = 
             use stream = FileSystem.FileStreamReadShim fileName
@@ -1348,3 +1351,4 @@ module Shim =
                 n <- n + stream.Read(buffer, n, len-n)
             buffer
 
+#endif

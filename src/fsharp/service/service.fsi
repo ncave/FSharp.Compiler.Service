@@ -90,8 +90,9 @@ type internal TypeCheckInfo =
     member ScopeSymbolUses: TcSymbolUses
     member TcGlobals: TcGlobals
     member TcImports: TcImports
-    member CcuSig: Tast.ModuleOrNamespaceType
+    member CcuSigForFile: Tast.ModuleOrNamespaceType
     member ThisCcu: Tast.CcuThunk
+    member ImplementationFile: TypedImplFile option
 #endif
 
 /// A handle to the results of CheckFileInProject.
@@ -276,7 +277,7 @@ type public FSharpCheckFileResults =
 type public FSharpCheckProjectResults =
 
 #if FABLE_COMPILER
-    internal new : projectFileName:string * tcConfigOption: TcConfig option * keepAssemblyContents: bool * errors: FSharpErrorInfo[] * details:(TcGlobals*TcImports*Tast.CcuThunk*Tast.ModuleOrNamespaceType*TcSymbolUses list*TypeChecker.TopAttribs option*CompileOps.IRawFSharpAssemblyData option * ILAssemblyRef * AccessibilityLogic.AccessorDomain * Tast.TypedImplFile list option * string[]) option * reactorOps: IReactorOperations -> FSharpCheckProjectResults
+    internal new : projectFileName:string * tcConfigOption: TcConfig option * keepAssemblyContents: bool * errors: FSharpErrorInfo[] * details:(TcGlobals*TcImports*Tast.CcuThunk*Tast.ModuleOrNamespaceType*TcSymbolUses list*TypeChecker.TopAttribs option*CompileOps.IRawFSharpAssemblyData option * ILAssemblyRef * AccessibilityLogic.AccessorDomain * Tast.TypedImplFile list option * string[]) option -> FSharpCheckProjectResults
 #endif
     /// The errors returned by processing the project
     member Errors: FSharpErrorInfo[]
@@ -374,7 +375,8 @@ type public FSharpProjectOptions =
 module internal Parser =
     type TypeCheckAborted = Yes | No of TypeCheckInfo
     val internal parseFile: source: string * filename: string * options: FSharpParsingOptions * userOpName: string -> FSharpErrorInfo [] * ParsedInput option * bool
-    val internal CheckOneFile : parseResults:FSharpParseFileResults * source:string * mainInputFileName:string * projectFileName:string * tcConfig:TcConfig * tcGlobals:TcGlobals * tcImports:TcImports * tcState:TcState * loadClosure:LoadClosure option * backgroundDiagnostics:(PhasedDiagnostic * FSharpErrorSeverity) list * reactorOps:IReactorOperations * checkAlive:(unit -> bool) * textSnapshotInfo:obj option * userOpName: string -> FSharpErrorInfo [] * TypeCheckAborted * Tast.TypedImplFile list
+    val internal CheckOneFile : parseResults:FSharpParseFileResults * source:string * mainInputFileName:string * projectFileName:string * tcConfig:TcConfig * tcGlobals:TcGlobals * tcImports:TcImports * tcState:TcState * loadClosure:LoadClosure option * backgroundDiagnostics:(PhasedDiagnostic * FSharpErrorSeverity)[] * reactorOps:IReactorOperations * checkAlive:(unit -> bool) * textSnapshotInfo:obj option * userOpName: string -> FSharpErrorInfo [] * TypeCheckAborted
+
 #else //!FABLE_COMPILER
 
 /// The result of calling TypeCheckResult including the possibility of abort and background compiler not caught up.

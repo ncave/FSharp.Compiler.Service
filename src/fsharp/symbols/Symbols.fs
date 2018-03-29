@@ -56,6 +56,9 @@ type FSharpAccessibility(a:Accessibility, ?isProtected) =
 type SymbolEnv(g:TcGlobals, thisCcu: CcuThunk, thisCcuTyp: ModuleOrNamespaceType option, tcImports: TcImports) = 
     let amapV = tcImports.GetImportMap()
     let infoReaderV = InfoReader(g, amapV)
+#if FABLE_COMPILER
+    new (g, thisCcu, thisCcuTyp, tcImports, _) = SymbolEnv(g, thisCcu, thisCcuTyp, tcImports)
+#endif
     member __.g = g
     member __.amap = amapV
     member __.thisCcu = thisCcu

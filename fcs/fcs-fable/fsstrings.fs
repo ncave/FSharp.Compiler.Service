@@ -854,6 +854,9 @@ let resources =
       ( "MatchIncomplete4",
         " Unmatched elements will be ignored."
       );
+      ( "EnumMatchIncomplete1",
+        "Enums may take values outside known cases."
+      );
       ( "RuleNeverMatched",
         "This rule will never be matched"
       );

@@ -10,18 +10,20 @@ namespace Microsoft.FSharp.Compiler.SourceCodeServices
 open Internal.Utilities
 open Internal.Utilities.Collections
 open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Control
 
 open System
 open System.Text
 open System.Threading
 open System.Collections.Generic
 
-open Microsoft.FSharp.Compiler 
+open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.AbstractIL
 open Microsoft.FSharp.Compiler.AbstractIL.IL
-open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics 
-open Microsoft.FSharp.Compiler.AbstractIL.Internal  
-open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library  
+open Microsoft.FSharp.Compiler.AbstractIL.ILBinaryReader
+open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics
+open Microsoft.FSharp.Compiler.AbstractIL.Internal
+open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 
 open Microsoft.FSharp.Compiler.AccessibilityLogic
 open Microsoft.FSharp.Compiler.Ast
@@ -37,12 +39,11 @@ open Microsoft.FSharp.Compiler.Layout
 open Microsoft.FSharp.Compiler.Tast
 open Microsoft.FSharp.Compiler.Tastops
 open Microsoft.FSharp.Compiler.Tastops.DebugPrint
-open Microsoft.FSharp.Compiler.TcGlobals 
+open Microsoft.FSharp.Compiler.TcGlobals
 open Microsoft.FSharp.Compiler.Infos
 open Microsoft.FSharp.Compiler.InfoReader
 open Microsoft.FSharp.Compiler.NameResolution
 open Microsoft.FSharp.Compiler.TypeChecker
-// open Microsoft.FSharp.Compiler.SourceCodeServices.ItemDescriptionsImpl 
 
 
 //-------------------------------------------------------------------------
@@ -65,20 +66,25 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
         let sigDataReaders ilModule =
             [ for resource in ilModule.Resources.AsList do
                 if IsSignatureDataResource resource then 
-                    let ccuName = GetSignatureDataResourceName resource 
-                    yield resource.Bytes ]
+                    let ccuName = GetSignatureDataResourceName resource
+                    yield resource.GetBytes() ]
 
         let optDataReaders ilModule =
             [ for resource in ilModule.Resources.AsList do
                 if IsOptimizationDataResource resource then
                     let ccuName = GetOptimizationDataResourceName resource
-                    yield resource.Bytes ]
-
+                    yield resource.GetBytes() ]
 
         let LoadMod ccuName =
             let fileName = ccuName + ".dll"
             let bytes = readAllBytes fileName
-            let opts = ILBinaryReader.mkDefault ilGlobals
+            let opts : ILReaderOptions =
+                  { ilGlobals = ilGlobals
+                    metadataOnly = MetadataOnlyFlag.Yes
+                    reduceMemoryUsage = ReduceMemoryFlag.Yes
+                    pdbPath = None
+                    tryGetMetadataSnapshot = (fun _ -> None) }
+
             let reader = ILBinaryReader.OpenILModuleReaderFromBytes fileName bytes opts
             reader.ILModuleDef //reader.ILAssemblyRefs
 
@@ -169,6 +175,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
 #endif
                     UsesFSharp20PlusQuotations = minfo.usesQuotations
                     MemberSignatureEquality = (fun ty1 ty2 -> Tastops.typeEquivAux EraseAll (tcImports.GetTcGlobals()) ty1 ty2)
+                    TryGetILModuleDef = (fun () -> Some ilModule)
                     TypeForwarders = Import.ImportILAssemblyTypeForwarders(tcImports.GetImportMap, m, GetRawTypeForwarders ilModule)
                     }
 
@@ -267,14 +274,14 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
         // Note: projectSourceFiles is only used to compute isLastCompiland, and is ignored if Build.IsScript(mainInputFileName) is true (which it is in this case).
         let parsingOptions = FSharpParsingOptions.FromTcConfig(tcConfig, [| filename |], false)
         let parseErrors, inputOpt, anyErrors = Parser.parseFile (source, filename, parsingOptions, userOpName)
-        let dependencyFiles = [| |] // interactions have no dependencies
+        let dependencyFiles = [||] // interactions have no dependencies
         let parseResults = FSharpParseFileResults(parseErrors, inputOpt, parseHadErrors = anyErrors, dependencyFiles = dependencyFiles)
         parseResults
 
     member x.ParseAndCheckScript (mainInputFileName, source) =
         let parseResults = x.ParseScript (mainInputFileName, source)
         let loadClosure = None
-        let backgroundErrors = []
+        let backgroundErrors = [||]
         let tcResults =
             Parser.CheckOneFile(parseResults,
                                 source,
@@ -292,10 +299,11 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcState, ctok,
                                 "")
 
         match tcResults with 
-        | tcErrors, Parser.TypeCheckAborted.No scope, tcImplFiles ->
+        | tcErrors, Parser.TypeCheckAborted.No scope ->
             let errors = [|  yield! parseResults.Errors; yield! tcErrors |]
+            let tcImplFiles = match scope.ImplementationFile with Some x -> Some [x] | None -> None
             let typeCheckResults = FSharpCheckFileResults (mainInputFileName, errors, Some scope, parseResults.DependencyFiles, None, reactorOps, true)   
-            let projectResults = FSharpCheckProjectResults (mainInputFileName, Some tcConfig, true, errors, Some(tcGlobals, tcImports, scope.ThisCcu, scope.CcuSig, [scope.ScopeSymbolUses], None, None, mkSimpleAssRef "stdin", tcState.TcEnvFromImpls.AccessRights, Some tcImplFiles, parseResults.DependencyFiles), reactorOps)
+            let projectResults = FSharpCheckProjectResults (mainInputFileName, Some tcConfig, true, errors, Some(tcGlobals, tcImports, scope.ThisCcu, scope.CcuSigForFile, [scope.ScopeSymbolUses], None, None, mkSimpleAssRef "stdin", tcState.TcEnvFromImpls.AccessRights, tcImplFiles, parseResults.DependencyFiles))
             parseResults, typeCheckResults, projectResults
         | _ -> 
             failwith "unexpected aborted"

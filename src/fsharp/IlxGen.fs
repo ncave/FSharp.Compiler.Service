@@ -3719,7 +3719,7 @@ and GenClosureTypeDefs cenv (tref:ILTypeRef, ilGenParams, attrs, ilCloFreeVars, 
         cloCode=notlazy ilCtorBody }
 
   let tdef = 
-    ILTypeDef(name = tref.Name,
+    ILTypeDef.Create(name = tref.Name,
               layout = ILTypeDefLayout.Auto,
               attributes = enum 0,
               genericParams = ilGenParams,
@@ -3772,7 +3772,7 @@ and GenLambdaClosure cenv (cgbuf:CodeGenBuffer) eenv isLocalTypeFunc selfv expr 
 
                 let ilContractMeths = [ilContractCtor; mkILGenericVirtualMethod("DirectInvoke",ILMemberAccess.Assembly,ilContractMethTyargs,[],mkILReturn ilContractFormalRetTy, MethodBody.Abstract) ]
                 let ilContractTypeDef = 
-                    ILTypeDef(name = ilContractTypeRef.Name,
+                    ILTypeDef.Create(name = ilContractTypeRef.Name,
                               layout = ILTypeDefLayout.Auto,
                               attributes = enum 0,
                               genericParams = ilContractGenericParams,
@@ -4711,7 +4711,7 @@ and GenBindingAfterSequencePoint cenv cgbuf eenv sp (TBind(vspec,rhsExpr,_)) sta
         let ilAttribs = GenAttrs cenv eenv vspec.Attribs
         let ilTy = ilGetterMethSpec.FormalReturnType
         let ilPropDef = 
-            ILPropertyDef(name = PrettyNaming.ChopPropertyName ilGetterMethSpec.Name,
+            ILPropertyDef.Create(name = PrettyNaming.ChopPropertyName ilGetterMethSpec.Name,
                           attributes = PropertyAttributes.None,
                           setMethod = None,
                           getMethod = Some ilGetterMethSpec.MethodRef,
@@ -4783,7 +4783,7 @@ and GenBindingAfterSequencePoint cenv cgbuf eenv sp (TBind(vspec,rhsExpr,_)) sta
                 |> List.filter (fun (Attrib(_,_,_,_,_,targets,_)) -> canTarget(targets, System.AttributeTargets.Property))
                 |> GenAttrs cenv eenv // property only gets attributes that target properties
             let ilPropDef = 
-                ILPropertyDef(name=ilPropName,
+                ILPropertyDef.Create(name=ilPropName,
                               attributes = PropertyAttributes.None,
                               setMethod=(if mut || cenv.opts.isInteractiveItExpr then Some ilSetterMethRef else None),
                               getMethod=Some ilGetterMethRef,
@@ -5025,7 +5025,7 @@ and GenReturnInfo cenv eenv ilRetTy (retInfo : ArgReprInfo) : ILReturn =
 and GenPropertyForMethodDef compileAsInstance tref mdef (v:Val) (memberInfo:ValMemberInfo) ilArgTys ilPropTy ilAttrs compiledName =
     let name = match compiledName with | Some n -> n | _ -> v.PropertyName in  (* chop "get_" *)
     
-    ILPropertyDef(name = name,
+    ILPropertyDef.Create(name = name,
                   attributes = PropertyAttributes.None,
                   setMethod = (if memberInfo.MemberFlags.MemberKind= MemberKind.PropertySet then Some(mkRefToILMethod(tref,mdef)) else None),
                   getMethod = (if memberInfo.MemberFlags.MemberKind= MemberKind.PropertyGet then Some(mkRefToILMethod(tref,mdef)) else None),
@@ -5042,7 +5042,7 @@ and GenEventForProperty cenv eenvForMeth (mspec:ILMethodSpec) (v:Val) ilAttrsTha
     let ilThisTy = mspec.DeclaringType
     let addMethRef    = mkILMethRef (ilThisTy.TypeRef,mspec.CallingConv,"add_"    + evname,0,[ilDelegateTy],ILType.Void)
     let removeMethRef = mkILMethRef (ilThisTy.TypeRef,mspec.CallingConv,"remove_" + evname,0,[ilDelegateTy],ILType.Void)
-    ILEventDef(eventType = Some ilDelegateTy,
+    ILEventDef.Create(eventType = Some ilDelegateTy,
                name= evname,
                attributes = EventAttributes.None,
                addMethod = addMethRef,
@@ -6357,8 +6357,8 @@ and GenTypeDef cenv mgbuf lazyInitInfo eenv m (tycon:Tycon) =
                   let literalValue = Option.map (GenFieldInit m) fspec.LiteralValue
                   
                   let fdef =
-                      ILFieldDef(name          = ilFieldName,
-                                 fieldType          = ilPropType,
+                      ILFieldDef.Create(name   = ilFieldName,
+                                 fieldType     = ilPropType,
                                  attributes    = enum 0,
                                  data          = None,
                                  literalValue  = None,
@@ -6385,7 +6385,7 @@ and GenTypeDef cenv mgbuf lazyInitInfo eenv m (tycon:Tycon) =
                      let ilHasSetter = isCLIMutable || isFSharpMutable
                      let ilFieldAttrs = GenAttrs cenv eenv propAttribs @ [mkCompilationMappingAttrWithSeqNum cenv.g (int SourceConstructFlags.Field) i]
                      yield
-                       ILPropertyDef(name= ilPropName,
+                       ILPropertyDef.Create(name= ilPropName,
                                      attributes= PropertyAttributes.None,
                                      setMethod= (if ilHasSetter then Some(mkILMethRef(tref,ilCallingConv,"set_" + ilPropName,0,[ilPropType],ILType.Void)) else None),
                                      getMethod= Some(mkILMethRef(tref,ilCallingConv,"get_" + ilPropName,0,[],ilPropType)),
@@ -6676,7 +6676,7 @@ and GenTypeDef cenv mgbuf lazyInitInfo eenv m (tycon:Tycon) =
                                               then SourceConstructFlags.SumType ||| SourceConstructFlags.NonPublicRepresentation 
                                               else SourceConstructFlags.SumType)) ])
                let tdef = 
-                   ILTypeDef(name = ilTypeName,
+                   ILTypeDef.Create(name = ilTypeName,
                              layout =  layout,
                              attributes = enum 0,
                              genericParams = ilGenParams,
@@ -6754,7 +6754,7 @@ and GenExnDef cenv mgbuf eenv m (exnc:Tycon) =
                let ilMethodDef = mkLdfldMethodDef (ilMethName,reprAccess,false,ilThisTy,ilFieldName,ilPropType)
                let ilFieldDef = IL.mkILInstanceField(ilFieldName,ilPropType, None, ILMemberAccess.Assembly)
                let ilPropDef = 
-                   ILPropertyDef(name = ilPropName,
+                   ILPropertyDef.Create(name = ilPropName,
                                  attributes = PropertyAttributes.None,
                                  setMethod = None,
                                  getMethod = Some(mkILMethRef(tref,ILCallingConv.Instance,ilMethName,0,[],ilPropType)),

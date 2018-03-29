@@ -1426,14 +1426,16 @@ let inline conditionalAdd condition flagToAdd source = if condition then source 
 
 let NoMetadataIdx = -1
 
-[<NoComparison; NoEquality>]
+[<NoComparison; NoEquality; Sealed>]
 type ILMethodDef (name: string, attributes: MethodAttributes, implAttributes: MethodImplAttributes, callingConv: ILCallingConv, 
                   parameters: ILParameters, ret: ILReturn, body: ILLazyMethodBody, isEntryPoint:bool, genericParams: ILGenericParameterDefs, 
                   securityDeclsStored: ILSecurityDeclsStored, customAttrsStored: ILAttributesStored, metadataIndex: int32) =
 
-    new (name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, securityDecls, customAttrs) = 
-       ILMethodDef(name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, 
-                   storeILSecurityDecls securityDecls, storeILCustomAttrs customAttrs, NoMetadataIdx)
+    static member CreateStored (name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, securityDeclsStored, customAttrsStored, metadataIndex) = 
+        ILMethodDef(name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, securityDeclsStored, customAttrsStored, metadataIndex)
+
+    static member Create (name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, securityDecls, customAttrs) = 
+        ILMethodDef(name, attributes, implAttributes, callingConv, parameters, ret, body, isEntryPoint, genericParams, storeILSecurityDecls securityDecls, storeILCustomAttrs customAttrs, NoMetadataIdx)
     
     // The captured data - remember the object will be as large as the data captured by these members
     member __.Name = name
@@ -1450,7 +1452,7 @@ type ILMethodDef (name: string, attributes: MethodAttributes, implAttributes: Me
     member __.MetadataIndex = metadataIndex
 
     member x.With (?name: string, ?attributes: MethodAttributes, ?implAttributes: MethodImplAttributes, ?callingConv: ILCallingConv, ?parameters: ILParameters, ?ret: ILReturn, ?body: ILLazyMethodBody, ?securityDecls: ILSecurityDecls, ?isEntryPoint:bool, ?genericParams: ILGenericParameterDefs, ?customAttrs: ILAttributes) =
-        ILMethodDef (name = defaultArg name x.Name,
+        ILMethodDef.Create (name = defaultArg name x.Name,
                      attributes = defaultArg attributes x.Attributes,
                      implAttributes = defaultArg implAttributes x.ImplAttributes,
                      callingConv = defaultArg callingConv x.CallingConv,
@@ -1557,10 +1559,13 @@ type ILMethodDefs(f : (unit -> ILMethodDef[])) =
     member x.FindByName nm  =  if dict.Value.ContainsKey nm then dict.Value.[nm] else []
     member x.FindByNameAndArity (nm,arity) = x.FindByName nm |> List.filter (fun x -> List.length x.Parameters = arity)
 
-[<NoComparison; NoEquality>]
+[<NoComparison; NoEquality; Sealed>]
 type ILEventDef(eventType: ILType option, name: string, attributes: EventAttributes, addMethod: ILMethodRef, removeMethod: ILMethodRef, fireMethod: ILMethodRef option, otherMethods: ILMethodRef list, customAttrsStored: ILAttributesStored, metadataIndex: int32) =
 
-    new (eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, customAttrs) =
+    static member CreateStored (eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, customAttrsStored, metadataIndex) =
+        ILEventDef(eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, customAttrsStored, metadataIndex)
+
+    static member Create (eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, customAttrs) =
         ILEventDef(eventType, name, attributes, addMethod, removeMethod, fireMethod, otherMethods, storeILCustomAttrs customAttrs, NoMetadataIdx)
 
     member __.EventType = eventType
@@ -1575,7 +1580,7 @@ type ILEventDef(eventType: ILType option, name: string, attributes: EventAttribu
     member x.CustomAttrs = customAttrsStored.GetCustomAttrs x.MetadataIndex
 
     member x.With(?eventType, ?name, ?attributes, ?addMethod, ?removeMethod, ?fireMethod, ?otherMethods, ?customAttrs) = 
-        ILEventDef(eventType= defaultArg eventType x.EventType,
+        ILEventDef.Create(eventType= defaultArg eventType x.EventType,
                    name= defaultArg name x.Name, 
                    attributes= defaultArg attributes x.Attributes, 
                    addMethod=defaultArg addMethod x.AddMethod, 
@@ -1596,10 +1601,13 @@ type ILEventDefs =
     member x.AsList = let (ILEvents t) = x in t.Entries()
     member x.LookupByName s = let (ILEvents t) = x in t.[s]
 
-[<NoComparison; NoEquality>]
+[<NoComparison; NoEquality; Sealed>]
 type ILPropertyDef(name: string, attributes: PropertyAttributes, setMethod: ILMethodRef option, getMethod: ILMethodRef option, callingConv: ILThisConvention, propertyType: ILType, init: ILFieldInit option, args: ILTypes, customAttrsStored: ILAttributesStored, metadataIndex: int32) =
 
-    new (name, attributes, setMethod, getMethod, callingConv, propertyType, init, args, customAttrs) =
+    static member CreateStored (name, attributes, setMethod, getMethod, callingConv, propertyType, init, args, customAttrsStored, metadataIndex) =
+       ILPropertyDef(name, attributes, setMethod, getMethod, callingConv, propertyType, init, args, customAttrsStored, metadataIndex)
+
+    static member Create (name, attributes, setMethod, getMethod, callingConv, propertyType, init, args, customAttrs) =
        ILPropertyDef(name, attributes, setMethod, getMethod, callingConv, propertyType, init, args, storeILCustomAttrs customAttrs, NoMetadataIdx)
 
     member x.Name = name
@@ -1615,7 +1623,7 @@ type ILPropertyDef(name: string, attributes: PropertyAttributes, setMethod: ILMe
     member x.MetadataIndex = metadataIndex
 
     member x.With(?name, ?attributes, ?setMethod, ?getMethod, ?callingConv, ?propertyType, ?init, ?args, ?customAttrs) = 
-      ILPropertyDef(name=defaultArg name x.Name, 
+      ILPropertyDef.Create(name=defaultArg name x.Name, 
                     attributes=defaultArg attributes x.Attributes, 
                     setMethod=defaultArg setMethod x.SetMethod, 
                     getMethod=defaultArg getMethod x.GetMethod, 
@@ -1646,11 +1654,15 @@ let convertFieldAccess (ilMemberAccess:ILMemberAccess) =
     | ILMemberAccess.Private             -> FieldAttributes.Private
     | ILMemberAccess.Public              -> FieldAttributes.Public
 
-[<NoComparison; NoEquality>]
+[<NoComparison; NoEquality; Sealed>]
 type ILFieldDef(name: string, fieldType: ILType, attributes: FieldAttributes, data: byte[] option, literalValue: ILFieldInit option, offset:  int32 option, marshal: ILNativeType option, customAttrsStored: ILAttributesStored, metadataIndex: int32) = 
 
-    new (name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs) = 
+    static member CreateStored (name, fieldType, attributes, data, literalValue, offset, marshal, customAttrsStored, metadataIndex) =
+        ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, customAttrsStored, metadataIndex)
+
+    static member Create (name, fieldType, attributes, data, literalValue, offset, marshal, customAttrs) = 
         ILFieldDef(name, fieldType, attributes, data, literalValue, offset, marshal, storeILCustomAttrs customAttrs, NoMetadataIdx)
+
     member __.Name=name
     member __.FieldType = fieldType
     member __.Attributes=attributes
@@ -1663,7 +1675,7 @@ type ILFieldDef(name: string, fieldType: ILType, attributes: FieldAttributes, da
     member x.MetadataIndex = metadataIndex
 
     member x.With(?name: string, ?fieldType: ILType, ?attributes: FieldAttributes, ?data: byte[] option, ?literalValue: ILFieldInit option, ?offset:  int32 option, ?marshal: ILNativeType option, ?customAttrs: ILAttributes) = 
-        ILFieldDef(name=defaultArg name x.Name,
+        ILFieldDef.Create(name=defaultArg name x.Name,
                    fieldType=defaultArg fieldType x.FieldType,
                    attributes=defaultArg attributes x.Attributes,
                    data=defaultArg data x.Data,
@@ -1816,13 +1828,16 @@ let convertInitSemantics (init:ILTypeInit) =
     | ILTypeInit.BeforeField -> TypeAttributes.BeforeFieldInit
     | ILTypeInit.OnAny -> enum 0
 
-[<NoComparison; NoEquality>]
-type ILTypeDef(name: string, attributes: TypeAttributes, layout: ILTypeDefLayout, implements: ILTypes, genericParams: ILGenericParameterDefs, 
-               extends: ILType option, methods: ILMethodDefs, nestedTypes: ILTypeDefs, fields: ILFieldDefs, methodImpls: ILMethodImplDefs, 
-               events: ILEventDefs, properties: ILPropertyDefs, securityDeclsStored: ILSecurityDeclsStored, customAttrsStored: ILAttributesStored, metadataIndex: int32) =  
+[<NoComparison; NoEquality; Sealed>]
+type ILTypeDef (name: string, attributes: TypeAttributes, layout: ILTypeDefLayout, implements: ILTypes, genericParams: ILGenericParameterDefs, 
+                extends: ILType option, methods: ILMethodDefs, nestedTypes: ILTypeDefs, fields: ILFieldDefs, methodImpls: ILMethodImplDefs, 
+                events: ILEventDefs, properties: ILPropertyDefs, securityDeclsStored: ILSecurityDeclsStored, customAttrsStored: ILAttributesStored, metadataIndex: int32) = 
 
-    new (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, securityDecls, customAttrs) =  
-       ILTypeDef (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, storeILSecurityDecls securityDecls, storeILCustomAttrs customAttrs, NoMetadataIdx)
+    static member CreateStored (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, securityDeclsStored, customAttrsStored, metadataIndex) = 
+        ILTypeDef (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, securityDeclsStored, customAttrsStored, metadataIndex)
+
+    static member Create (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, securityDecls, customAttrs) = 
+        ILTypeDef (name, attributes, layout, implements, genericParams, extends, methods, nestedTypes, fields, methodImpls, events, properties, storeILSecurityDecls securityDecls, storeILCustomAttrs customAttrs, NoMetadataIdx)
 
     member __.Name = name
     member __.Attributes = attributes
@@ -1841,7 +1856,7 @@ type ILTypeDef(name: string, attributes: TypeAttributes, layout: ILTypeDefLayout
     member __.MetadataIndex = metadataIndex
 
     member x.With(?name, ?attributes, ?layout, ?implements, ?genericParams, ?extends, ?methods, ?nestedTypes, ?fields, ?methodImpls, ?events, ?properties, ?customAttrs, ?securityDecls) = 
-        ILTypeDef(name=defaultArg name x.Name, 
+        ILTypeDef.Create(name=defaultArg name x.Name, 
                   attributes=defaultArg attributes x.Attributes, 
                   layout=defaultArg layout x.Layout, 
                   genericParams = defaultArg genericParams x.GenericParams,
@@ -1928,10 +1943,15 @@ and [<Sealed>] ILPreTypeDef(nameSpace: string list, name: string, metadataIndex:
             | ILTypeDefStored.Given td -> 
                 store <- td
                 td
+#if FABLE_COMPILER
+            | ILTypeDefStored.Computed f -> store <- f(); store
+            | ILTypeDefStored.Reader f -> store <- f x.MetadataIndex; store
+#else
             | ILTypeDefStored.Computed f -> 
                 System.Threading.LazyInitializer.EnsureInitialized<ILTypeDef>(&store, System.Func<_>(fun () -> f()))
             | ILTypeDefStored.Reader f -> 
                 System.Threading.LazyInitializer.EnsureInitialized<ILTypeDef>(&store, System.Func<_>(fun () -> f x.MetadataIndex))
+#endif
         | _ -> store
       
 and ILTypeDefStored = 
@@ -1991,8 +2011,10 @@ type ILResource =
     /// Read the bytes from a resource local to an assembly
     member r.GetBytes() = 
         match r.Location with
+#if !FABLE_COMPILER
         | ILResourceLocation.LocalIn (file, start, len) -> 
             FileSystem.ReadAllBytesShim(file).[start .. start + len - 1]
+#endif
         | ILResourceLocation.LocalOut bytes -> bytes
         | _ -> failwith "GetBytes"
 
@@ -2656,7 +2678,7 @@ let methBodyAbstract = mkMethBodyAux MethodBody.Abstract
 let methBodyNative = mkMethBodyAux MethodBody.Native
 
 let mkILCtor (access,args,impl) = 
-    ILMethodDef(name=".ctor",
+    ILMethodDef.Create(name=".ctor",
                 attributes=(convertMemberAccess access ||| MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName),
                 implAttributes=MethodImplAttributes.Managed,
                 callingConv=ILCallingConv.Instance,
@@ -2695,7 +2717,7 @@ let mkILNonGenericEmptyCtor tag superTy =
 // -------------------------------------------------------------------- 
 
 let mkILStaticMethod (genparams,nm,access,args,ret,impl) = 
-    ILMethodDef(genericParams=genparams,
+    ILMethodDef.Create(genericParams=genparams,
                 name=nm,
                 attributes=(convertMemberAccess access ||| MethodAttributes.Static),
                 implAttributes=MethodImplAttributes.Managed,
@@ -2711,7 +2733,7 @@ let mkILNonGenericStaticMethod (nm,access,args,ret,impl) =
     mkILStaticMethod (mkILEmptyGenericParams,nm,access,args,ret,impl)
 
 let mkILClassCtor impl = 
-    ILMethodDef(name=".cctor",
+    ILMethodDef.Create(name=".cctor",
                 attributes=(MethodAttributes.Private ||| MethodAttributes.Static ||| MethodAttributes.SpecialName ||| MethodAttributes.RTSpecialName),
                 implAttributes=MethodImplAttributes.Managed,
                 callingConv=ILCallingConv.Static,
@@ -2732,7 +2754,7 @@ let mk_ospec (typ:ILType,callconv,nm,genparams,formal_args,formal_ret) =
   OverridesSpec (mkILMethRef (typ.TypeRef, callconv, nm, genparams, formal_args,formal_ret), typ)
 
 let mkILGenericVirtualMethod (nm,access,genparams,actual_args,actual_ret,impl) = 
-    ILMethodDef(name=nm,
+    ILMethodDef.Create(name=nm,
                 attributes= 
                   (convertMemberAccess access |||
                    MethodAttributes.CheckAccessOnOverride ||| 
@@ -2751,7 +2773,7 @@ let mkILNonGenericVirtualMethod (nm,access,args,ret,impl) =
     mkILGenericVirtualMethod (nm,access,mkILEmptyGenericParams,args,ret,impl)
 
 let mkILGenericNonVirtualMethod (nm,access,genparams, actual_args,actual_ret, impl) = 
-    ILMethodDef(name=nm,
+    ILMethodDef.Create(name=nm,
                 attributes=(convertMemberAccess access ||| MethodAttributes.HideBySig),
                 implAttributes=MethodImplAttributes.Managed,
                 genericParams=genparams,
@@ -2839,7 +2861,7 @@ let prependInstrsToClassCtor instrs tag cd =
     
 
 let mkILField (isStatic,nm,ty,(init:ILFieldInit option),(at: byte [] option),access,isLiteral) =
-     ILFieldDef(name=nm,
+     ILFieldDef.Create(name=nm,
                 fieldType=ty,
                 attributes=
                     (convertFieldAccess access |||
@@ -2956,7 +2978,7 @@ let mkILStorageCtor(tag,preblock,typ,flds,access) = mkILStorageCtorWithParamName
 
 
 let mkILGenericClass (nm, access, genparams, extends, impl, methods, fields, nestedTypes, props, events, attrs, init) =
-    ILTypeDef(name=nm,
+    ILTypeDef.Create(name=nm,
               attributes=(convertTypeAccessFlags access ||| TypeAttributes.AutoLayout ||| TypeAttributes.Class ||| (match init with | ILTypeInit.BeforeField -> TypeAttributes.BeforeFieldInit | _ -> enum 0) ||| TypeAttributes.AnsiClass),
               genericParams= genparams,
               implements = impl,
@@ -2972,7 +2994,7 @@ let mkILGenericClass (nm, access, genparams, extends, impl, methods, fields, nes
               securityDecls=emptyILSecurityDecls)
     
 let mkRawDataValueTypeDef (iltyp_ValueType: ILType) (nm,size,pack) =
-    ILTypeDef(name = nm,
+    ILTypeDef.Create(name = nm,
               genericParams= [],
               attributes = (TypeAttributes.NotPublic ||| TypeAttributes.Sealed ||| TypeAttributes.ExplicitLayout ||| TypeAttributes.BeforeFieldInit ||| TypeAttributes.AnsiClass),
               implements = [],
