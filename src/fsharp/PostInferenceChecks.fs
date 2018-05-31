@@ -5,6 +5,10 @@
 module internal Microsoft.FSharp.Compiler.PostTypeCheckSemanticChecks
 
 open System.Collections.Generic
+open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+#endif
 
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.AbstractIL.IL

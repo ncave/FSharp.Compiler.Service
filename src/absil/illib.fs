@@ -4,6 +4,13 @@ module public Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 #nowarn "1178" // The struct, record or union type 'internal_instr_extension' is not structurally comparable because the type
 
 
+#if FABLE_COMPILER
+open Internal.Utilities
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core
+open Microsoft.FSharp.Core.Operators
+open Microsoft.FSharp.Control
+#endif
 open System
 open System.Collections
 open System.Collections.Generic
@@ -43,6 +50,7 @@ let inline isNonNull x = not (isNull x)
 let inline nonNull msg x = if isNull x then failwith ("null: " + msg) else x
 let inline (===) x y = LanguagePrimitives.PhysicalEquality x y
 
+#if !FABLE_COMPILER // no Process support
 //---------------------------------------------------------------------
 // Library: ReportTime
 //---------------------------------------------------------------------
@@ -56,13 +64,19 @@ let reportTime =
             let first = match !tFirst with None -> (tFirst := Some t; t) | Some t -> t
             printf "ilwrite: TIME %10.3f (total)   %10.3f (delta) - %s\n" (t - first) (t - prev) descr
             tPrev := Some t
+#endif
 
 //-------------------------------------------------------------------------
 // Library: projections
 //------------------------------------------------------------------------
 
-[<Struct>]
 /// An efficient lazy for inline storage in a class type. Results in fewer thunks.
+#if FABLE_COMPILER // no threading support
+type InlineDelayInit<'T when 'T : not struct>(f: unit -> 'T) = 
+    let store = lazy(f())
+    member x.Value = store.Force()
+#else
+[<Struct>]
 type InlineDelayInit<'T when 'T : not struct> = 
     new (f: unit -> 'T) = {store = Unchecked.defaultof<'T>; func = Func<_>(f) } 
     val mutable store : 'T
@@ -74,6 +88,7 @@ type InlineDelayInit<'T when 'T : not struct> =
         let res = LazyInitializer.EnsureInitialized(&x.store, x.func) 
         x.func <- Unchecked.defaultof<_>
         res
+#endif
 
 //-------------------------------------------------------------------------
 // Library: projections
@@ -315,7 +330,9 @@ module List =
         | _ -> true
 
     let mapq (f: 'T -> 'T) inp =
+#if !FABLE_COMPILER
         assert not (typeof<'T>.IsValueType) 
+#endif
         match inp with
         | [] -> inp
         | [h1a] -> 
@@ -477,7 +494,7 @@ module String =
         if r = -1 then indexNotFound() else r
 
     let contains (s:string) (c:char) = 
-        s.IndexOf(c,0,String.length s) <> -1
+        s.IndexOf(c) <> -1
 
     let order = LanguagePrimitives.FastGenericComparer<string>
    
@@ -506,7 +523,7 @@ module String =
 
     let lowerCaseFirstChar (str: string) =
         if String.IsNullOrEmpty str 
-         || Char.IsLower(str, 0) then str else 
+         || Char.IsLower(str.[0]) then str else 
         let strArr = toCharArray str
         match Array.tryHead strArr with
         | None -> str
@@ -535,7 +552,7 @@ module String =
     let split options (separator: string []) (value: string) = 
         if isNull value  then null else value.Split(separator, options)
 
-    let (|StartsWith|_|) pattern value =
+    let (|StartsWith|_|) (pattern: string) value =
         if String.IsNullOrWhiteSpace value then
             None
         elif value.StartsWith pattern then
@@ -549,6 +566,7 @@ module String =
             Some()
         else None
 
+#if !FABLE_COMPILER
     let getLines (str: string) =
         use reader = new StringReader(str)
         [|
@@ -561,6 +579,8 @@ module String =
             // http://stackoverflow.com/questions/19365404/stringreader-omits-trailing-linebreak
             yield String.Empty
         |]
+#endif
+
 module Dictionary = 
 
     let inline newWithSize (size: int) = Dictionary<_,_>(size, HashIdentity.Structural)
@@ -604,10 +624,12 @@ let AssumeAnyCallerThreadWithoutEvidence () = Unchecked.defaultof<AnyCallerThrea
 type LockToken = inherit ExecutionToken
 let AssumeLockWithoutEvidence<'LockTokenType when 'LockTokenType :> LockToken> () = Unchecked.defaultof<'LockTokenType>
 
+#if !FABLE_COMPILER
 /// Encapsulates a lock associated with a particular token-type representing the acquisition of that lock.
 type Lock<'LockTokenType when 'LockTokenType :> LockToken>() = 
     let lockObj = obj()
     member __.AcquireLock f = lock lockObj (fun () -> f (AssumeLockWithoutEvidence<'LockTokenType>()))
+#endif
 
 //---------------------------------------------------
 // Misc
@@ -713,7 +735,11 @@ module Cancellable =
     /// Run the computation in a mode where it may not be cancelled. The computation never results in a 
     /// ValueOrCancelled.Cancelled.
     let runWithoutCancellation comp = 
+#if FABLE_COMPILER
+        let res = run (System.Threading.CancellationToken()) comp
+#else
         let res = run CancellationToken.None comp 
+#endif
         match res with 
         | ValueOrCancelled.Cancelled _ -> failwith "unexpected cancellation" 
         | ValueOrCancelled.Value r -> r
@@ -809,6 +835,7 @@ module Eventually =
     let force ctok e = Option.get (forceWhile ctok (fun () -> true) e)
 
         
+#if !FABLE_COMPILER
     /// Keep running the computation bit by bit until a time limit is reached.
     /// The runner gets called each time the computation is restarted
     ///
@@ -843,6 +870,7 @@ module Eventually =
                     return! loop r
             }
         loop e
+#endif
 
     let rec bind k e = 
         match e with 
@@ -927,6 +955,10 @@ type MemoizationTable<'T,'U>(compute: 'T -> 'U, keyComparer: IEqualityComparer<'
     let table = new Dictionary<'T,'U>(keyComparer) 
     member t.Apply(x) = 
         if (match canMemoize with None -> true | Some f -> f x) then 
+#if FABLE_COMPILER // no byref
+            (
+                    let ok, res = table.TryGetValue(x)
+#else
             let mutable res = Unchecked.defaultof<'U>
             let ok = table.TryGetValue(x,&res)
             if ok then res 
@@ -934,6 +966,7 @@ type MemoizationTable<'T,'U>(compute: 'T -> 'U, keyComparer: IEqualityComparer<'
                 lock table (fun () -> 
                     let mutable res = Unchecked.defaultof<'U> 
                     let ok = table.TryGetValue(x,&res)
+#endif
                     if ok then res 
                     else
                         let res = compute x
@@ -975,12 +1008,16 @@ type LazyWithContext<'T,'ctxt> =
         match x.funcOrException with 
         | null -> x.value 
         | _ -> 
+#if FABLE_COMPILER // no threading support
+            x.UnsynchronizedForce(ctxt)
+#else
             // Enter the lock in case another thread is in the process of evaluating the result
             Monitor.Enter(x);
             try 
                 x.UnsynchronizedForce(ctxt)
             finally
                 Monitor.Exit(x)
+#endif
 
     member x.UnsynchronizedForce(ctxt) = 
         match x.funcOrException with 
@@ -1011,11 +1048,11 @@ module Tables =
     let memoize f = 
         let t = new Dictionary<_,_>(1000, HashIdentity.Structural)
         fun x -> 
-            let mutable res = Unchecked.defaultof<_>
-            if t.TryGetValue(x, &res) then 
+            let ok, res = t.TryGetValue(x)
+            if ok then 
                 res 
             else
-                res <- f x; t.[x] <- res;  res
+                let res = f x in t.[x] <- res; res
 
 
 /// Interface that defines methods for comparing objects using partial equality relation
@@ -1153,10 +1190,17 @@ type LayeredMap<'Key,'Value  when 'Key : comparison> = Map<'Key,'Value>
 type Map<'Key,'Value when 'Key : comparison> with
     static member Empty : Map<'Key,'Value> = Map.empty
 
+#if FABLE_COMPILER // no byref support
+    member m.TryGetValue (key) = 
+        match m.TryFind key with 
+        | None -> false, Unchecked.defaultof<_>
+        | Some r -> true, r
+#else
     member m.TryGetValue (key,res:byref<'Value>) = 
         match m.TryFind key with 
         | None -> false
         | Some r -> res <- r; true
+#endif
 
     member x.Values = [ for (KeyValue(_,v)) in x -> v ]
     member x.AddAndMarkAsCollapsible (kvs: _[])   = (x,kvs) ||> Array.fold (fun x (KeyValue(k,v)) -> x.Add(k,v))
@@ -1186,6 +1230,7 @@ module Shim =
 
     type IFileSystem = 
 
+#if !FABLE_COMPILER
         /// A shim over File.ReadAllBytes
         abstract ReadAllBytesShim: fileName:string -> byte[] 
 
@@ -1197,6 +1242,7 @@ module Shim =
 
         /// A shim over FileStream with FileMode.Open,FileAccess.Write,FileShare.Read
         abstract FileStreamWriteExistingShim: fileName:string -> Stream
+#endif
 
         /// Take in a filename with an absolute path, and return the same filename
         /// but canonicalized with respect to extra path separators (e.g. C:\\\\foo.txt) 
@@ -1209,6 +1255,7 @@ module Shim =
         /// A shim over Path.IsInvalidPath
         abstract IsInvalidPathShim: filename:string -> bool
 
+#if !FABLE_COMPILER
         /// A shim over Path.GetTempPath
         abstract GetTempPathShim : unit -> string
 
@@ -1229,11 +1276,13 @@ module Shim =
 
         /// Used to determine if a file will not be subject to deletion during the lifetime of a typical client process.
         abstract IsStableFileHeuristic: fileName: string -> bool
+#endif
 
 
     type DefaultFileSystem() =
         interface IFileSystem with
 
+#if !FABLE_COMPILER
             member __.AssemblyLoadFrom(fileName: string) = 
                 Assembly.LoadFrom fileName
 
@@ -1247,6 +1296,7 @@ module Shim =
             member __.FileStreamCreateShim (fileName: string) = new FileStream(fileName,FileMode.Create,FileAccess.Write,FileShare.Read ,0x1000,false) :> Stream
 
             member __.FileStreamWriteExistingShim (fileName: string) = new FileStream(fileName,FileMode.Open,FileAccess.Write,FileShare.Read ,0x1000,false) :> Stream
+#endif
 
             member __.GetFullPathShim (fileName: string) = System.IO.Path.GetFullPath fileName
 
@@ -1267,6 +1317,7 @@ module Shim =
                 let filename = Path.GetFileName(path)
                 isInvalidDirectory(directory) || isInvalidFilename(filename)
 
+#if !FABLE_COMPILER
             member __.GetTempPathShim() = Path.GetTempPath()
 
             member __.GetLastWriteTimeShim (fileName:string) = File.GetLastWriteTimeUtc fileName
@@ -1282,8 +1333,11 @@ module Shim =
                 directory.Contains("packages/") || 
                 directory.Contains("packages\\") || 
                 directory.Contains("lib/mono/")
+#endif
 
     let mutable FileSystem = DefaultFileSystem() :> IFileSystem 
+
+#if !FABLE_COMPILER
 
     type File with 
         static member ReadBinaryChunk (fileName, start, len) = 
@@ -1295,3 +1349,4 @@ module Shim =
                 n <- n + stream.Read(buffer, n, len-n)
             buffer
 
+#endif

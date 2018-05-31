@@ -61,7 +61,7 @@ type CalledArg =
       NameOpt: Ident option
       CalledArgumentType : TType }
 
-let CalledArg(pos, isParamArray, optArgInfo, callerInfoInfo, isOutArg, nameOpt, reflArgInfo, calledArgTy) =
+let GetCalledArg(pos, isParamArray, optArgInfo, callerInfoInfo, isOutArg, nameOpt, reflArgInfo, calledArgTy) =
     { Position=pos
       IsParamArray=isParamArray
       OptArgInfo =optArgInfo

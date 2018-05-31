@@ -898,7 +898,9 @@ and [<Class>] public FSharpActivePatternGroup =
 and [<Class>] public FSharpType =
 
     /// Internal use only. Create a ground type.
+#if !FABLE_COMPILER
     internal new : g:TcGlobals * thisCcu: CcuThunk * thisCcuTyp: ModuleOrNamespaceType * tcImports: TcImports * typ:TType -> FSharpType
+#endif
     internal new : SymbolEnv * typ:TType -> FSharpType
 
     /// Indicates this is a named type in an unresolved assembly 

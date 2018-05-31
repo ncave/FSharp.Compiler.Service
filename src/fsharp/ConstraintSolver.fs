@@ -33,6 +33,10 @@
 module internal Microsoft.FSharp.Compiler.ConstraintSolver
 
 open Internal.Utilities.Collections
+#if FABLE_COMPILER
+open Internal.Utilities
+open Microsoft.FSharp.Collections
+#endif
 
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.AbstractIL 
@@ -1919,7 +1923,7 @@ and CanMemberSigsMatchUpToCheck
             if isArray1DTy g calledArg.CalledArgumentType then 
                 let paramArrayElemTy = destArrayTy g calledArg.CalledArgumentType
                 let reflArgInfo = calledArg.ReflArgInfo // propgate the reflected-arg info to each param array argument
-                calledMeth.ParamArrayCallerArgs |> OptionD (IterateD (fun callerArg -> subsumeArg (CalledArg((0, 0), false, NotOptional, NoCallerInfo, false, None, reflArgInfo, paramArrayElemTy)) callerArg))
+                calledMeth.ParamArrayCallerArgs |> OptionD (IterateD (fun callerArg -> subsumeArg (GetCalledArg((0, 0), false, NotOptional, NoCallerInfo, false, None, reflArgInfo, paramArrayElemTy)) callerArg))
             else
                 CompleteD)
         
@@ -1942,7 +1946,7 @@ and CanMemberSigsMatchUpToCheck
                     let calledArgTy = rfinfo.FieldType
                     rfinfo.Name, calledArgTy
             
-            subsumeArg (CalledArg((-1, 0), false, NotOptional, NoCallerInfo, false, Some (mkSynId m name), ReflectedArgInfo.None, calledArgTy)) caller) )) ++ (fun () -> 
+            subsumeArg (GetCalledArg((-1, 0), false, NotOptional, NoCallerInfo, false, Some (mkSynId m name), ReflectedArgInfo.None, calledArgTy)) caller) )) ++ (fun () -> 
         
         // - Always take the return type into account for
         //      -- op_Explicit, op_Implicit
