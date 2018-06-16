@@ -3,6 +3,10 @@
 module internal Microsoft.FSharp.Compiler.PatternMatchCompilation
 
 open System.Collections.Generic
+open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+#endif
 open Microsoft.FSharp.Compiler 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 open Microsoft.FSharp.Compiler.AbstractIL.Diagnostics 
@@ -1247,7 +1251,7 @@ let CompilePatternBasic
     
     // Report unused targets 
     if warnOnUnused then 
-        let used = HashSet<_>(accTargetsOfDecisionTree dtree [],HashIdentity.Structural)
+        let used = HashSet<_>(accTargetsOfDecisionTree dtree [] |> List.toSeq, HashIdentity.Structural)
 
         clausesL |> List.iteri (fun i c ->  
             if not (used.Contains i) then warning (RuleNeverMatched c.Range)) 
