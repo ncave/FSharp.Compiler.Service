@@ -79,9 +79,6 @@ type Stack<'a>(n)  =
     let mutable contents = Array.zeroCreate<'a>(n)
     let mutable count = 0
 
-#if FABLE_COMPILER
-    new (n, _) = Stack<'a>(n)
-#endif
     member buf.Ensure newSize = 
         let oldSize = contents.Length
         if newSize > oldSize then 

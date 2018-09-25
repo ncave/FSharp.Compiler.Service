@@ -1329,15 +1329,16 @@ type TypeCheckInfo
 
         resolutions
         |> Seq.choose (fun cnr ->
-            match cnr with
+            let m = cnr.Range
+            match cnr.Item, cnr.ItemOccurence with
             // 'seq' in 'seq { ... }' gets colored as keywords
-            | CNR(_, (Item.Value vref), ItemOccurence.Use, _, _, _, m) when valRefEq g g.seq_vref vref ->
+            | (Item.Value vref), ItemOccurence.Use when valRefEq g g.seq_vref vref ->
                 Some (m, SemanticClassificationType.ComputationExpression)
-            | CNR(_, (Item.Value vref), _, _, _, _, m) when vref.IsMutable || Tastops.isRefCellTy g vref.Type ->
+            | (Item.Value vref), _ when vref.IsMutable || Tastops.isRefCellTy g vref.Type ->
                 Some (m, SemanticClassificationType.MutableVar)
-            | CNR(_, Item.Value KeywordIntrinsicValue, ItemOccurence.Use, _, _, _, m) ->
+            | Item.Value KeywordIntrinsicValue, ItemOccurence.Use ->
                 Some (m, SemanticClassificationType.IntrinsicFunction)
-            | CNR(_, (Item.Value vref), _, _, _, _, m) when isFunction g vref.Type ->
+            | (Item.Value vref), _ when isFunction g vref.Type ->
                 if valRefEq g g.range_op_vref vref || valRefEq g g.range_step_op_vref vref then 
                     None
                 elif vref.IsPropertyGetterMethod || vref.IsPropertySetterMethod then
@@ -1346,46 +1347,46 @@ type TypeCheckInfo
                     Some (m, SemanticClassificationType.Operator)
                 else
                     Some (m, SemanticClassificationType.Function)
-            | CNR(_, Item.RecdField rfinfo, _, _, _, _, m) when rfinfo.RecdField.IsMutable && rfinfo.LiteralValue.IsNone -> 
+            | Item.RecdField rfinfo, _ when rfinfo.RecdField.IsMutable && rfinfo.LiteralValue.IsNone -> 
                 Some (m, SemanticClassificationType.MutableVar)
-            | CNR(_, Item.RecdField rfinfo, _, _, _, _, m) when isFunction g rfinfo.FieldType ->
+            | Item.RecdField rfinfo, _ when isFunction g rfinfo.FieldType ->
                Some (m, SemanticClassificationType.Function)
-            | CNR(_, Item.RecdField EnumCaseFieldInfo, _, _, _, _, m) ->
+            | Item.RecdField EnumCaseFieldInfo, _ ->
                 Some (m, SemanticClassificationType.Enumeration)
-            | CNR(_, Item.MethodGroup _, _, _, _, _, m) ->
+            | Item.MethodGroup _, _ ->
                 Some (m, SemanticClassificationType.Function)
             // custom builders, custom operations get colored as keywords
-            | CNR(_, (Item.CustomBuilder _ | Item.CustomOperation _), ItemOccurence.Use, _, _, _, m) ->
+            | (Item.CustomBuilder _ | Item.CustomOperation _), ItemOccurence.Use ->
                 Some (m, SemanticClassificationType.ComputationExpression)
             // types get colored as types when they occur in syntactic types or custom attributes
             // typevariables get colored as types when they occur in syntactic types custom builders, custom operations get colored as keywords
-            | CNR(_, Item.Types (_, [OptionalArgumentAttribute]), LegitTypeOccurence, _, _, _, _) -> None
-            | CNR(_, Item.CtorGroup(_, [MethInfo.FSMeth(_, OptionalArgumentAttribute, _, _)]), LegitTypeOccurence, _, _, _, _) -> None
-            | CNR(_, Item.Types(_, types), LegitTypeOccurence, _, _, _, m) when types |> List.exists (isInterfaceTy g) -> 
+            | Item.Types (_, [OptionalArgumentAttribute]), LegitTypeOccurence -> None
+            | Item.CtorGroup(_, [MethInfo.FSMeth(_, OptionalArgumentAttribute, _, _)]), LegitTypeOccurence -> None
+            | Item.Types(_, types), LegitTypeOccurence when types |> List.exists (isInterfaceTy g) -> 
                 Some (m, SemanticClassificationType.Interface)
-            | CNR(_, Item.Types(_, types), LegitTypeOccurence, _, _, _, m) when types |> List.exists (isStructTy g) -> 
+            | Item.Types(_, types), LegitTypeOccurence when types |> List.exists (isStructTy g) -> 
                 Some (m, SemanticClassificationType.ValueType)
-            | CNR(_, Item.Types(_, TType_app(tyconRef, TType_measure _ :: _) :: _), LegitTypeOccurence, _, _, _, m) when isStructTyconRef tyconRef ->
+            | Item.Types(_, TType_app(tyconRef, TType_measure _ :: _) :: _), LegitTypeOccurence when isStructTyconRef tyconRef ->
                 Some (m, SemanticClassificationType.ValueType)
-            | CNR(_, Item.Types(_, types), LegitTypeOccurence, _, _, _, m) when types |> List.exists isDisposableTy ->
+            | Item.Types(_, types), LegitTypeOccurence when types |> List.exists isDisposableTy ->
                 Some (m, SemanticClassificationType.Disposable)
-            | CNR(_, Item.Types _, LegitTypeOccurence, _, _, _, m) -> 
+            | Item.Types _, LegitTypeOccurence -> 
                 Some (m, SemanticClassificationType.ReferenceType)
-            | CNR(_, (Item.TypeVar _ ), LegitTypeOccurence, _, _, _, m) ->
+            | (Item.TypeVar _ ), LegitTypeOccurence ->
                 Some (m, SemanticClassificationType.TypeArgument)
-            | CNR(_, Item.UnqualifiedType tyconRefs, LegitTypeOccurence, _, _, _, m) ->
+            | Item.UnqualifiedType tyconRefs, LegitTypeOccurence ->
                 if tyconRefs |> List.exists (fun tyconRef -> tyconRef.Deref.IsStructOrEnumTycon) then
                     Some (m, SemanticClassificationType.ValueType)
                 else Some (m, SemanticClassificationType.ReferenceType)
-            | CNR(_, Item.CtorGroup(_, minfos), LegitTypeOccurence, _, _, _, m) ->
+            | Item.CtorGroup(_, minfos), LegitTypeOccurence ->
                 if minfos |> List.exists (fun minfo -> isStructTy g minfo.ApparentEnclosingType) then
                     Some (m, SemanticClassificationType.ValueType)
                 else Some (m, SemanticClassificationType.ReferenceType)
-            | CNR(_, Item.ExnCase _, LegitTypeOccurence, _, _, _, m) ->
+            | Item.ExnCase _, LegitTypeOccurence ->
                 Some (m, SemanticClassificationType.ReferenceType)
-            | CNR(_, Item.ModuleOrNamespaces refs, LegitTypeOccurence, _, _, _, m) when refs |> List.exists (fun x -> x.IsModule) ->
+            | Item.ModuleOrNamespaces refs, LegitTypeOccurence when refs |> List.exists (fun x -> x.IsModule) ->
                 Some (m, SemanticClassificationType.Module)
-            | CNR(_, (Item.ActivePatternCase _ | Item.UnionCase _ | Item.ActivePatternResult _), _, _, _, _, m) ->
+            | (Item.ActivePatternCase _ | Item.UnionCase _ | Item.ActivePatternResult _), _ ->
                 Some (m, SemanticClassificationType.UnionCase)
             | _ -> None)
         |> Seq.toArray
@@ -1887,10 +1888,6 @@ type FSharpCheckProjectResults(projectFileName:string, tcConfigOption, keepAssem
         | None -> invalidOp ("The project has no results due to critical errors in the project options. Check the HasCriticalErrors before accessing the detailed results. Errors: " + String.concat "\n" [ for e in errors -> e.Message ])
         | Some d -> d
 
-#if FABLE_COMPILER
-    new (projectFileName, tcConfigOption, keepAssemblyContents, errors, details, _) = FSharpCheckProjectResults(projectFileName, tcConfigOption, keepAssemblyContents, errors, details)
-#endif
-
     member info.Errors = errors
 
     member info.HasCriticalErrors = details.IsNone
@@ -2033,10 +2030,6 @@ type FSharpCheckFileResults(filename: string, errors: FSharpErrorInfo[], scopeOp
         match details with
         | None -> dflt()
         | Some (scope, _builderOpt, _ops) -> f scope
-
-#if FABLE_COMPILER
-    new (filename, errors, scopeOptX, dependencyFiles, builderX, reactorOpsX, keepAssemblyContents, _) = FSharpCheckFileResults(filename, errors, scopeOptX, dependencyFiles, builderX, reactorOpsX, keepAssemblyContents)
-#endif
 
     // At the moment we only dispose on finalize - we never explicitly dispose these objects. Explicitly disposing is not
     // really worth much since the underlying project builds are likely to still be in the incrementalBuilder cache.

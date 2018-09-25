@@ -8,6 +8,7 @@ open Microsoft.FSharp.Compiler.AccessibilityLogic
 open Microsoft.FSharp.Compiler.CompileOps
 open Microsoft.FSharp.Compiler.Import
 open Microsoft.FSharp.Compiler.InfoReader
+open Microsoft.FSharp.Compiler.Infos
 open Microsoft.FSharp.Compiler.Range
 open Microsoft.FSharp.Compiler.Ast
 open Microsoft.FSharp.Compiler.Tast
@@ -16,8 +17,8 @@ open Microsoft.FSharp.Compiler.NameResolution
 
 // Implementation details used by other code in the compiler    
 type internal SymbolEnv = 
+    internal new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports * amap: ImportMap * infoReader: InfoReader -> SymbolEnv
     new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports -> SymbolEnv
-    new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports * amap: ImportMap * infoReader: InfoReader -> SymbolEnv
     member amap: ImportMap
     member g: TcGlobals
 
@@ -401,14 +402,23 @@ and [<Class>] public FSharpUnionCase =
     /// Indicates if the union case is for a type in an unresolved assembly 
     member IsUnresolved : bool
 
+and internal FSharpFieldData = 
+    | ILField of ILFieldInfo
+    | RecdOrClass of RecdFieldRef
+    | Union of UnionCaseRef * int
 
+    member TryRecdField: Choice<RecdField, ILFieldInfo>
+    member DeclaringTyconRef: TyconRef
 
 /// A subtype of FSharpSymbol that represents a record or union case field as seen by the F# language
 and [<Class>] public FSharpField =
 
     inherit FSharpSymbol
-    internal new : SymbolEnv * RecdFieldRef -> FSharpField
+#if FABLE_COMPILER
+    internal new : SymbolEnv * FSharpFieldData -> FSharpField
+#endif
     internal new : SymbolEnv * UnionCaseRef * int -> FSharpField
+    internal new : SymbolEnv * RecdFieldRef -> FSharpField
 
     /// Get the declaring entity of this field
     member DeclaringEntity: FSharpEntity
@@ -640,10 +650,20 @@ and [<RequireQualifiedAccess>] public FSharpInlineAnnotation =
    /// Indicates the value is aggressively inlined by the .NET runtime
    | AggressiveInline 
 
+and [<RequireQualifiedAccess>] internal FSharpMemberOrValData = 
+    | E of EventInfo
+    | P of PropInfo
+    | M of MethInfo
+    | C of MethInfo
+    | V of ValRef
+
 /// A subtype of F# symbol that represents an F# method, property, event, function or value, including extension members.
 and [<Class>] public FSharpMemberOrFunctionOrValue = 
 
     inherit FSharpSymbol
+#if FABLE_COMPILER
+    internal new : SymbolEnv * FSharpMemberOrValData * Item -> FSharpMemberOrFunctionOrValue
+#endif
     internal new : SymbolEnv * ValRef -> FSharpMemberOrFunctionOrValue
     internal new : SymbolEnv * Infos.MethInfo -> FSharpMemberOrFunctionOrValue
 
@@ -904,10 +924,9 @@ and [<Class>] public FSharpActivePatternGroup =
 and [<Class>] public FSharpType =
 
     /// Internal use only. Create a ground type.
-#if !FABLE_COMPILER
-    internal new : g:TcGlobals * thisCcu: CcuThunk * thisCcuTyp: ModuleOrNamespaceType * tcImports: TcImports * ty:TType -> FSharpType
-#endif
     internal new : SymbolEnv * ty:TType -> FSharpType
+
+    internal new : g:TcGlobals * thisCcu: CcuThunk * thisCcuTyp: ModuleOrNamespaceType * tcImports: TcImports * ty:TType -> FSharpType
 
     /// Indicates this is a named type in an unresolved assembly 
     member IsUnresolved : bool

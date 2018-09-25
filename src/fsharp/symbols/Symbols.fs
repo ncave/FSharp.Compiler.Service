@@ -34,10 +34,6 @@ type FSharpAccessibility(a:Accessibility, ?isProtected) =
         | _ when List.forall isInternalCompPath p  -> Internal 
         | _ -> Private
 
-#if FABLE_COMPILER
-    new (a, _) = FSharpAccessibility(a)
-#endif
-
     member __.IsPublic = not isProtected && match a with Public -> true | _ -> false
 
     member __.IsPrivate = not isProtected && match a with Private -> true | _ -> false
@@ -348,9 +344,6 @@ and FSharpEntity(cenv: SymbolEnv, entity:EntityRef) =
         | None -> false
         | Some ccu -> ccuEq ccu cenv.g.fslibCcu
 
-#if FABLE_COMPILER
-    new (cenv, entity, _) = FSharpEntity(cenv, entity)
-#endif
     member __.Entity = entity
         
     member __.LogicalName = 
@@ -773,10 +766,6 @@ and FSharpUnionCase(cenv, v: UnionCaseRef) =
         if v.TryUnionCase.IsNone then 
             invalidOp (sprintf "The union case '%s' could not be found in the target type" v.CaseName)
 
-#if FABLE_COMPILER
-    new (cenv, v, _) = FSharpUnionCase(cenv, v)
-#endif
-
     member __.IsUnresolved = 
         isUnresolved()
 
@@ -1086,10 +1075,6 @@ and FSharpGenericParameter(cenv, v:Typar) =
                           (fun () -> Item.TypeVar(v.Name, v)), 
                           (fun _ _ _ad -> true))
 
-#if FABLE_COMPILER
-    new (cenv, v, _) = FSharpGenericParameter(cenv, v)
-#endif
-
     member __.Name = v.DisplayName
 
     member __.DeclarationLocation = v.Range
@@ -1160,9 +1145,6 @@ and FSharpAbstractParameter(cenv, info: SlotParam) =
 
 and FSharpAbstractSignature(cenv, info: SlotSig) =
 
-#if FABLE_COMPILER
-    new (cenv, info, _) = FSharpAbstractSignature(cenv, info)
-#endif
     member __.AbstractArguments = 
         info.FormalParams
         |> List.map (List.map (fun p -> FSharpAbstractParameter(cenv, p)) >> makeReadOnlyCollection)
@@ -2021,11 +2003,7 @@ and FSharpType(cenv, ty:TType) =
     
     let isResolved() = not (isUnresolved())
 
-#if FABLE_COMPILER
-    new (cenv, typ, _) = FSharpType(cenv, typ)
-#else
     new (g, thisCcu, thisCcuTy, tcImports, ty) = FSharpType(SymbolEnv(g, thisCcu, Some thisCcuTy, tcImports), ty)
-#endif
 
     member __.IsUnresolved = isUnresolved()
 
