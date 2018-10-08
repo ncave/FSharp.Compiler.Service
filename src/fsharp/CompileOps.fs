@@ -5387,7 +5387,7 @@ type LoadClosure =
     }
 
 // cut-down version of TcConfig
-type TcConfig (optimize: bool) =
+type TcConfig (optimize: bool, defines: string list) =
 #if TODO_REWORK_ASSEMBLY_LOAD
     member x.primaryAssembly = PrimaryAssembly.DotNetCore
 #else
@@ -5398,7 +5398,7 @@ type TcConfig (optimize: bool) =
     member x.isInteractive = false
     member x.mlCompatibility = false
     member x.noDebugData = false
-    member x.conditionalCompilationDefines = []
+    member x.conditionalCompilationDefines = defines
     member x.emitDebugInfoInQuotations = false
     member x.errorSeverityOptions = FSharpErrorSeverityOptions.Default
     member x.light = Some true
