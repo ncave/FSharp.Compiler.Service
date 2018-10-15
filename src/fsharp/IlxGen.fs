@@ -124,7 +124,11 @@ let ReportStatistics (oc:TextWriter) = reports oc
 
 let NewCounter nm = 
     let count = ref 0
+#if FABLE_COMPILER
+    ignore nm
+#else
     AddReport (fun oc -> if !count <> 0 then oc.WriteLine (string !count + " " + nm))
+#endif
     (fun () -> incr count)
 
 let CountClosure = NewCounter "closures"
@@ -7014,6 +7018,8 @@ type ExecutionContext =
       LookupTypeRef : (ILTypeRef -> Type)
       LookupType : (ILType -> Type) } 
 
+#if !FABLE_COMPILER
+
 // A helper to generate a default value for any System.Type. I couldn't find a System.Reflection
 // method to do this.
 let defaultOf = 
@@ -7024,8 +7030,6 @@ let defaultOf =
            | _ -> failwith "unexpected failure decoding quotation at ilxgen startup")
     fun ty -> gminfo.Value.MakeGenericMethod([| ty |]).Invoke(null,[| |])
     
-#if !FABLE_COMPILER
-
 /// Top-level val bindings are stored (for example) in static fields.
 /// In the FSI case, these fields are be created and initialised, so we can recover the object.
 /// IlxGen knows how v was stored, and then ilreflect knows how this storage was generated.
