@@ -6,13 +6,13 @@ namespace Internal.Utilities.Collections.Tagged
     #nowarn "69" // interface implementations in augmentations
     #nowarn "60" // override implementations in augmentations
 
+    open Internal.Utilities
+    open Internal.Utilities.Collections
     open Microsoft.FSharp.Core
     open Microsoft.FSharp.Core.Operators
     open Microsoft.FSharp.Core.LanguagePrimitives.IntrinsicOperators
     open System
     open System.Collections.Generic
-    open Internal.Utilities
-    open Internal.Utilities.Collections
 
 
     [<CompilationRepresentation(CompilationRepresentationFlags.UseNullAsTrueValue)>]
@@ -659,11 +659,15 @@ namespace Internal.Utilities.Collections.Tagged
 
         member s.ToArray () = SetTree.toArray tree
 
-        override this.Equals(that) = 
+        override this.Equals(that) =
+#if FABLE_COMPILER
+            ((this :> System.IComparable).CompareTo(that) = 0)
+#else
             match that with
             // Cast to the exact same type as this, otherwise not equal.
             | :? Set<'T,'ComparerTag> as that -> ((this :> System.IComparable).CompareTo(that) = 0)
             | _ -> false
+#endif
 
         interface System.IComparable with
             // Cast s2 to the exact same type as s1, see 4884.
@@ -1141,11 +1145,15 @@ namespace Internal.Utilities.Collections.Tagged
         interface System.Collections.IEnumerable with
             override s.GetEnumerator() = (MapTree.toSeq tree :> System.Collections.IEnumerator)
 
-        override this.Equals(that) = 
+        override this.Equals(that) =
+#if FABLE_COMPILER
+            ((this :> System.IComparable).CompareTo(that) = 0)
+#else
             match that with
             // Cast to the exact same type as this, otherwise not equal.
             | :? Map<'Key,'T,'ComparerTag> as that -> ((this :> System.IComparable).CompareTo(that) = 0)
             | _ -> false
+#endif
 
         interface System.IComparable with 
              member m1.CompareTo(m2: obj) = 

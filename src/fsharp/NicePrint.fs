@@ -6,6 +6,9 @@
 
 module internal Microsoft.FSharp.Compiler.NicePrint
 
+#if FABLE_COMPILER
+open Internal.Utilities
+#endif
 open Microsoft.FSharp.Compiler.AbstractIL 
 open Microsoft.FSharp.Compiler.AbstractIL.IL 
 open Microsoft.FSharp.Compiler.AbstractIL.Internal 

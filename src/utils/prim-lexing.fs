@@ -6,6 +6,9 @@
 
 namespace Internal.Utilities.Text.Lexing
 
+#if FABLE_COMPILER
+    open Internal.Utilities
+#endif
     open Microsoft.FSharp.Core
     open Microsoft.FSharp.Collections
     open System.Collections.Generic
@@ -190,7 +193,7 @@ namespace Internal.Utilities.Text.Lexing
 
 
     module GenericImplFragments = 
-        let startInterpret(lexBuffer:LexBuffer<LexBufferChar>)= 
+        let startInterpret(lexBuffer:LexBuffer<LexBufferChar>) = 
             lexBuffer.BufferScanStart <- lexBuffer.BufferScanStart + lexBuffer.LexemeLength;
             lexBuffer.BufferMaxScanLength <- lexBuffer.BufferMaxScanLength - lexBuffer.LexemeLength;
             lexBuffer.BufferScanLength <- 0;

@@ -2,14 +2,12 @@
 
 module internal Microsoft.FSharp.Compiler.Lexhelp
 
-open System
-open System.Text
-
 open Internal.Utilities
 open Internal.Utilities.Collections
 open Internal.Utilities.Text
 open Internal.Utilities.Text.Lexing
-
+open System
+open System.Text
 open Microsoft.FSharp.Compiler
 open Microsoft.FSharp.Compiler.AbstractIL
 open Microsoft.FSharp.Compiler.AbstractIL.Internal
@@ -45,12 +43,18 @@ type LightSyntaxStatus(initial:bool,warn:bool) =
 type LexResourceManager() =
     let strings = new System.Collections.Generic.Dictionary<string, Parser.token>(1024)
     member x.InternIdentifierToken(s) = 
+#if FABLE_COMPILER
+        let ok, res = strings.TryGetValue(s)
+#else
         let mutable res = Unchecked.defaultof<_> 
         let ok = strings.TryGetValue(s, &res)  
-        if ok then res  else 
-        let res = IDENT s
-        (strings.[s] <- res; res)
-              
+#endif
+        if ok then res 
+        else 
+            let res = IDENT s
+            strings.[s] <- res
+            res
+
 /// Lexer parameters 
 type lexargs =  
     { defines: string list

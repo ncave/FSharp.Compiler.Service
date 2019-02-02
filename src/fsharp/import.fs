@@ -3,6 +3,10 @@
 /// Functions to import .NET binary metadata as TAST objects
 module internal Microsoft.FSharp.Compiler.Import
 
+open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Core.Operators
+#endif
 open System.Reflection
 open System.Collections.Concurrent
 open System.Collections.Generic

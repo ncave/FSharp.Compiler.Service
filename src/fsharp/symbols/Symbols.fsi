@@ -8,6 +8,7 @@ open Microsoft.FSharp.Compiler.AccessibilityLogic
 open Microsoft.FSharp.Compiler.CompileOps
 open Microsoft.FSharp.Compiler.Import
 open Microsoft.FSharp.Compiler.InfoReader
+open Microsoft.FSharp.Compiler.Infos
 open Microsoft.FSharp.Compiler.Range
 open Microsoft.FSharp.Compiler.Ast
 open Microsoft.FSharp.Compiler.Tast
@@ -16,8 +17,8 @@ open Microsoft.FSharp.Compiler.NameResolution
 
 // Implementation details used by other code in the compiler    
 type internal SymbolEnv = 
+    internal new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports * amap: ImportMap * infoReader: InfoReader -> SymbolEnv
     new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports -> SymbolEnv
-    new: TcGlobals * thisCcu:CcuThunk * thisCcuTyp: ModuleOrNamespaceType option * tcImports: TcImports * amap: ImportMap * infoReader: InfoReader -> SymbolEnv
     member amap: ImportMap
     member g: TcGlobals
 
@@ -420,8 +421,8 @@ and [<Class>] public FSharpAnonRecordTypeDetails =
 and [<Class>] public FSharpField =
 
     inherit FSharpSymbol
-    internal new : SymbolEnv * RecdFieldRef -> FSharpField
     internal new : SymbolEnv * UnionCaseRef * int -> FSharpField
+    internal new : SymbolEnv * RecdFieldRef -> FSharpField
 
     /// Get the declaring entity of this field, if any. Fields from anonymous types do not have a declaring entity
     member DeclaringEntity: FSharpEntity option
@@ -658,6 +659,13 @@ and [<RequireQualifiedAccess>] public FSharpInlineAnnotation =
 
    /// Indicates the value is aggressively inlined by the .NET runtime
    | AggressiveInline 
+
+and [<RequireQualifiedAccess>] internal FSharpMemberOrValData = 
+    | E of EventInfo
+    | P of PropInfo
+    | M of MethInfo
+    | C of MethInfo
+    | V of ValRef
 
 /// A subtype of F# symbol that represents an F# method, property, event, function or value, including extension members.
 and [<Class>] public FSharpMemberOrFunctionOrValue = 
@@ -923,8 +931,9 @@ and [<Class>] public FSharpActivePatternGroup =
 and [<Class>] public FSharpType =
 
     /// Internal use only. Create a ground type.
-    internal new : g:TcGlobals * thisCcu: CcuThunk * thisCcuTyp: ModuleOrNamespaceType * tcImports: TcImports * ty:TType -> FSharpType
     internal new : SymbolEnv * ty:TType -> FSharpType
+
+    internal new : g:TcGlobals * thisCcu: CcuThunk * thisCcuTyp: ModuleOrNamespaceType * tcImports: TcImports * ty:TType -> FSharpType
 
     /// Indicates this is a named type in an unresolved assembly 
     member IsUnresolved : bool

@@ -3,13 +3,18 @@
 /// Coordinating compiler operations - configuration, loading initial context, reporting errors etc.
 module internal Microsoft.FSharp.Compiler.CompileOps
 
+open Internal.Utilities
 open System
 open System.Collections.Generic
 open System.Diagnostics
 open System.IO
 open System.Text
 
-open Internal.Utilities
+#if FABLE_COMPILER
+open Microsoft.FSharp.Collections
+open Microsoft.FSharp.Core
+open Microsoft.FSharp.Core.Operators
+#endif
 open Internal.Utilities.Collections
 open Internal.Utilities.Filename
 open Internal.Utilities.Text
@@ -227,9 +232,11 @@ let GetRangeOfDiagnostic(err:PhasedDiagnostic) =
       | HashLoadedSourceHasIssues(_, _, m) 
       | HashLoadedScriptConsideredSource(m) -> 
           Some m
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           RangeFromException e.InnerException
+#endif
 #if !NO_EXTENSIONTYPING
       | :? TypeProviderError as e -> e.Range |> Some
 #endif
@@ -356,9 +363,11 @@ let GetDiagnosticNumber(err:PhasedDiagnostic) =
       | PatternMatchCompilation.EnumMatchIncomplete _ -> 104
        (* DO NOT CHANGE THE NUMBERS *)
 
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           GetFromException e.InnerException
+#endif
       
       | WrappedError(e, _) -> GetFromException e   
 
@@ -426,9 +435,11 @@ let SplitRelatedDiagnostics(err:PhasedDiagnostic) =
       | WrappedError (e, m) -> 
           let e, related = SplitRelatedException e
           WrappedError(e.Exception, m)|>ToPhased, related
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           SplitRelatedException e.InnerException
+#endif
       | e -> 
            ToPhased(e), []
     SplitRelatedException(err.Exception)
@@ -436,7 +447,9 @@ let SplitRelatedDiagnostics(err:PhasedDiagnostic) =
 
 let DeclareMesssage = Microsoft.FSharp.Compiler.DiagnosticMessage.DeclareResourceString
 
+#if !FABLE_COMPILER
 do FSComp.SR.RunStartupValidation()
+#endif
 let SeeAlsoE() = DeclareResourceString("SeeAlso", "%s")
 let ConstraintSolverTupleDiffLengthsE() = DeclareResourceString("ConstraintSolverTupleDiffLengths", "%d%d")
 let ConstraintSolverInfiniteTypesE() = DeclareResourceString("ConstraintSolverInfiniteTypes", "%s%s")
@@ -600,6 +613,18 @@ let TargetInvocationExceptionWrapperE() = DeclareResourceString("TargetInvocatio
 let getErrorString key = SR.GetString key
 
 let (|InvalidArgument|_|) (exn:exn) = match exn with :? ArgumentException as e -> Some e.Message | _ -> None
+
+#if FABLE_COMPILER
+type StringBuilder() =
+    let buf = System.Text.StringBuilder()
+    member x.Append(s: string) = buf.Append(s) |> ignore; x
+    override x.ToString() = buf.ToString()
+
+module Printf =
+    let bprintf (sb: StringBuilder) =
+        let f (s:string) = sb.Append(s) |> ignore
+        Printf.kprintf f
+#endif
 
 let OutputPhasedErrorR (os:StringBuilder) (err:PhasedDiagnostic) =
 
@@ -1329,7 +1354,7 @@ let OutputPhasedErrorR (os:StringBuilder) (err:PhasedDiagnostic) =
           os.Append(LetRecUnsound1E().Format v.DisplayName) |> ignore
 
       | LetRecUnsound (_, path, _) -> 
-          let bos = new System.Text.StringBuilder()
+          let bos = new StringBuilder()
           (path.Tail @ [path.Head]) |> List.iter (fun (v:ValRef) -> bos.Append(LetRecUnsoundInnerE().Format v.DisplayName) |> ignore) 
           os.Append(LetRecUnsound2E().Format (List.head path).DisplayName (bos.ToString())) |> ignore
 
@@ -1556,6 +1581,7 @@ let OutputPhasedErrorR (os:StringBuilder) (err:PhasedDiagnostic) =
       | MSBuildReferenceResolutionError(code, message, _) -> 
           os.Append(MSBuildReferenceResolutionErrorE().Format message code) |> ignore
 
+#if !FABLE_COMPILER
       // Strip TargetInvocationException wrappers
       | :? System.Reflection.TargetInvocationException as e -> 
           OutputExceptionR os e.InnerException
@@ -1571,7 +1597,7 @@ let OutputPhasedErrorR (os:StringBuilder) (err:PhasedDiagnostic) =
       | :? IOException as e -> Printf.bprintf os "%s" e.Message
 
       | :? System.UnauthorizedAccessException as e -> Printf.bprintf os "%s" e.Message
-
+#endif
       | e -> 
           os.Append(TargetInvocationExceptionWrapperE().Format e.Message) |> ignore
 #if DEBUG
@@ -1585,14 +1611,14 @@ let OutputPhasedErrorR (os:StringBuilder) (err:PhasedDiagnostic) =
 
 // remove any newlines and tabs 
 let OutputPhasedDiagnostic (os:System.Text.StringBuilder) (err:PhasedDiagnostic) (flattenErrors:bool) = 
-    let buf = new System.Text.StringBuilder()
+    let buf = new StringBuilder()
 
     OutputPhasedErrorR buf err
     let s = if flattenErrors then ErrorLogger.NormalizeErrorString (buf.ToString()) else buf.ToString()
     
     os.Append(s) |> ignore
 
-let SanitizeFileName fileName implicitIncludeDir =
+let SanitizeFileName fileName (implicitIncludeDir: string) =
     // The assert below is almost ok, but it fires in two cases:
     //  - fsi.exe sometimes passes "stdin" as a dummy filename
     //  - if you have a #line directive, e.g. 
@@ -1611,6 +1637,8 @@ let SanitizeFileName fileName implicitIncludeDir =
             fullPath.Replace(currentDir+"\\", "")
     with _ ->
         fileName
+
+#if !FABLE_COMPILER
 
 [<RequireQualifiedAccess>]
 type DiagnosticLocation =
@@ -2026,6 +2054,8 @@ let ResolveFileUsingPaths(paths, m, name) =
         let searchMessage = String.concat "\n " paths
         raise (FileNameNotResolved(name, searchMessage, m))            
 
+#endif //!FABLE_COMPILER
+
 let GetWarningNumber(m, s:string) =
     try
         // Okay so ...
@@ -2067,6 +2097,7 @@ type ResolveAssemblyReferenceMode = Speculative | ReportErrors
 [<RequireQualifiedAccess>]
 type CopyFSharpCoreFlag = Yes | No
 
+#if !FABLE_COMPILER
 /// Represents the file or string used for the --version flag
 type VersionFlag = 
     | VersionString of string
@@ -2090,6 +2121,7 @@ type VersionFlag =
                  is.ReadLine()
          | VersionNone -> "0.0.0.0"
 
+#endif //!FABLE_COMPILER
 
 /// Represents a reference to an assembly. May be backed by a real assembly on disk, or a cross-project
 /// reference backed by information generated by the the compiler service.
@@ -2122,10 +2154,12 @@ type TimeStampCache(defaultTimeStamp: DateTime) =
         let ok, v = files.TryGetValue(fileName)
         if ok then v else
         let v = 
+#if !FABLE_COMPILER
             try 
                 FileSystem.GetLastWriteTimeShim(fileName)
             with 
             | :? FileNotFoundException ->
+#endif
                 defaultTimeStamp   
         files.[fileName] <- v
         v
@@ -2197,6 +2231,8 @@ type ImportedAssembly =
 type AvailableImportedAssembly =
     | ResolvedImportedAssembly of ImportedAssembly
     | UnresolvedImportedAssembly of string
+
+#if !FABLE_COMPILER
 
 type CcuLoadFailureAction = 
     | RaiseError
@@ -3300,6 +3336,7 @@ type TcConfig private (data : TcConfigBuilder, validate:bool) =
     member tcConfig.PrimaryAssemblyDllReference() = primaryAssemblyReference
     member tcConfig.CoreLibraryDllReference() = fslibReference
                
+#endif //!FABLE_COMPILER
 
 let ReportWarning options err = 
     warningOn err (options.WarnLevel) (options.WarnOn) && not (List.contains (GetDiagnosticNumber err) (options.WarnOff))
@@ -3591,6 +3628,8 @@ let ParseInput (lexer, errorLogger:ErrorLogger, lexbuf:UnicodeLexing.Lexbuf, def
         let filteringErrorLogger = ErrorLoggerFilteringByScopedPragmas(false, scopedPragmas, errorLogger)
         delayLogger.CommitDelayedDiagnostics(filteringErrorLogger)
 
+#if !FABLE_COMPILER
+
 //----------------------------------------------------------------------------
 // parsing - ParseOneInputFile
 // Filename is (ml/mli/fs/fsi source). Parse it to AST. 
@@ -3765,6 +3804,7 @@ type TcAssemblyResolutions(tcConfig: TcConfig, results: AssemblyResolution list,
         let references = resolutions |> List.map (fun r -> r.originalReference)
         TcAssemblyResolutions.ResolveAssemblyReferences (ctok, tcConfig, references, knownUnresolved)
             
+#endif //!FABLE_COMPILER
 
 //----------------------------------------------------------------------------
 // Typecheck and optimization environments on disk
@@ -3791,6 +3831,8 @@ let GetOptimizationDataResourceName (r: ILResource) =
     elif r.Name.StartsWithOrdinal(FSharpOptimizationDataResourceName2) then 
         String.dropPrefix r.Name FSharpOptimizationDataResourceName2
     else failwith "GetOptimizationDataResourceName"
+
+#if !FABLE_COMPILER
 
 let IsReflectedDefinitionsResource (r: ILResource) =
     r.Name.StartsWithOrdinal(QuotationPickler.SerializedReflectedDefinitionsResourceNameBase)
@@ -5345,6 +5387,89 @@ let CheckSimulateException(tcConfig:TcConfig) =
     | Some("tc-fail") -> failwith "simulated"
     | _ -> ()
 
+#endif //!FABLE_COMPILERFABLE_COMPILER
+
+#if FABLE_COMPILER
+
+type AssemblyResolution = 
+    { originalReference : AssemblyReference
+      resolvedPath : string    
+      prepareToolTip : unit -> string
+      sysdir : bool 
+      ilAssemblyRef : ILAssemblyRef option ref
+    }
+
+// cut-down version of LoadClosure
+type LoadClosure = 
+    {
+      SourceFiles: (string * range list) list
+      References: (string * AssemblyResolution list) list
+    }
+
+// cut-down version of TcConfig
+type TcConfig (optimize: bool, defines: string list) =
+    member x.primaryAssembly = PrimaryAssembly.NetStandard
+    member x.implicitIncludeDir = ""
+    member x.compilingFslib = false
+    member x.isInteractive = false
+    member x.mlCompatibility = false
+    member x.noDebugData = false
+    member x.conditionalCompilationDefines = defines
+    member x.emitDebugInfoInQuotations = false
+    member x.errorSeverityOptions = FSharpErrorSeverityOptions.Default
+    member x.light = Some true
+    member x.target = CompilerTarget.WinExe
+    member x.extraOptimizationIterations = if optimize then 0 else 0
+#if DEBUG
+    member x.showOptimizationData = false
+#endif
+    member x.doDetuple = optimize
+    member x.doTLR = optimize
+    member x.doFinalSimplify = optimize
+    member x.optSettings = { Optimizer.OptimizationSettings.Defaults with
+                                jitOptUser = Some optimize
+                                localOptUser = Some optimize
+                                crossModuleOptUser = Some optimize
+                                lambdaInlineThreshold = if optimize then 6 else 0 }
+    member x.emitTailcalls = true
+    member x.internalTestSpanStackReferring = false
+    member x.noConditionalErasure = false
+
+// cut-down version of TcImports
+type TcImports() =
+    let mutable tcGlobalsOpt = None
+    let mutable ccuMap = Map<string, ImportedAssembly>([])
+
+    // This is the main "assembly reference --> assembly" resolution routine.
+    let FindCcuInfo (_, assemblyName) =
+        match ccuMap |> Map.tryFind assemblyName with
+        | Some ccuInfo -> ResolvedCcu(ccuInfo.FSharpViewOfMetadata)
+        | None -> UnresolvedCcu(assemblyName)
+
+    member x.FindCcu (_, assemblyName) =
+        match ccuMap |> Map.tryFind assemblyName with
+        | Some ccuInfo -> Some ccuInfo.FSharpViewOfMetadata
+        | None -> None
+
+    member x.SetTcGlobals g =
+        tcGlobalsOpt <- Some g
+    member x.GetTcGlobals() =
+        tcGlobalsOpt.Value
+    member x.SetCcuMap m =
+        ccuMap <- m
+    member x.GetImportedAssemblies() =
+        ccuMap.Values
+
+    member x.GetImportMap() =
+        let loaderInterface =
+            { new Import.AssemblyLoader with
+                 member x.FindCcuFromAssemblyRef (_ctok, m, ilAssemblyRef) = 
+                    FindCcuInfo(m, ilAssemblyRef.Name)
+            }
+        new Import.ImportMap (tcGlobalsOpt.Value, loaderInterface)
+
+#endif //FABLE_COMPILER
+
 //----------------------------------------------------------------------------
 // Type-check sets of files
 //--------------------------------------------------------------------------
@@ -5437,7 +5562,9 @@ let TypeCheckOneInputEventually (checkForErrors, tcConfig:TcConfig, tcImports:Tc
           let! ctok = Eventually.token
           RequireCompilationThread ctok // Everything here requires the compilation thread since it works on the TAST
 
+#if !FABLE_COMPILER
           CheckSimulateException(tcConfig)
+#endif
 
           let m = inp.Range
           let amap = tcImports.GetImportMap()
