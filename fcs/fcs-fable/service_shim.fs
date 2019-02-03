@@ -305,10 +305,18 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
 
     member private x.ClearStaleCache (fileName: string, parsingOptions: FSharpParsingOptions) =
         let fileIndex = parsingOptions.SourceFiles |> Array.findIndex ((=) fileName)
+        let filesAbove = parsingOptions.SourceFiles |> Array.take fileIndex
+        // backup all cached typecheck entries above file
+        let cachedAbove = filesAbove |> Array.choose (fun key ->
+            match checkCache.TryGetValue(key) with
+            | true, value -> Some (key, value)
+            | false, _ -> None)
+        // remove all parse cache entries with the same file name
         let staleParseKeys = parseCache.Keys |> Seq.filter (fun (n,_) -> n = fileName) |> Seq.toArray
-        let staleCheckKeys = parsingOptions.SourceFiles |> Array.skip fileIndex
         staleParseKeys |> Array.iter (fun key -> parseCache.Remove(key) |> ignore)
-        staleCheckKeys |> Array.iter (fun key -> checkCache.Remove(key) |> ignore)
+        checkCache.Clear(); // clear all typecheck cache
+        // restore all cached typecheck entries above file
+        cachedAbove |> Array.iter (fun (key, value) -> checkCache.TryAdd(key, value) |> ignore)
 
     member private x.ParseFile (fileName: string, source: string, parsingOptions: FSharpParsingOptions) =
         let parseCacheKey = fileName, hash source
@@ -373,6 +381,13 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         let tcState, declaredImpls = TypeCheckClosedInputSetFinish (implFiles, tcState)
         tcState, topAttrs, declaredImpls, tcEnvAtEndOfLastFile, moduleNamesDict
 
+    /// Errors grouped by file, sorted by line, column
+    member private x.ErrorsByFile (fileNames: string[], errorList: FSharpErrorInfo[] list) =
+        let errorMap = errorList |> Array.concat |> Array.groupBy (fun x -> x.FileName) |> Map.ofArray
+        let errors = fileNames |> Array.choose errorMap.TryFind
+        errors |> Array.iter (Array.sortInPlaceBy (fun x -> x.StartLineAlternate, x.StartColumn))
+        errors |> Array.concat
+
     /// Clears parse and typecheck caches.
     member x.ClearCache () =
         parseCache.Clear()
@@ -426,7 +441,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         // make project results
         let parseErrors = parseResults |> Array.collect (fun p -> p.Errors)
         let typedErrors = errorScope.Diagnostics |> List.toArray
-        let errors = Array.append parseErrors typedErrors //TODO: order by file
+        let errors = x.ErrorsByFile (fileNames, [ parseErrors; typedErrors ])
         let symbolUses = [] //TODO:
         let projectResults = x.MakeProjectResults (projectFileName, parseResults, tcState, errors, symbolUses, Some topAttrs, Some tcImplFiles)
 
@@ -467,7 +482,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         let parseErrorsBefore = parseResults |> Array.collect (fun p -> p.Errors)
         let typedErrorsBefore = errorScope.Diagnostics |> List.toArray
         let newErrors = match checkFileResults with | Some res -> res.Errors | None -> [||]
-        let errors = [| yield! parseErrorsBefore; yield! typedErrorsBefore; yield! newErrors |] //TODO: order by file
+        let errors = x.ErrorsByFile (fileNames, [ parseErrorsBefore; typedErrorsBefore; newErrors ])
 
         // make partial project results
         let parseResults = Array.append parseResults [| parseFileResults |]
