@@ -313,7 +313,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
             | false, _ -> None)
         // remove all parse cache entries with the same file name
         let staleParseKeys = parseCache.Keys |> Seq.filter (fun (n,_) -> n = fileName) |> Seq.toArray
-        staleParseKeys |> Array.iter (fun key -> parseCache.Remove(key) |> ignore)
+        staleParseKeys |> Array.iter (fun key -> parseCache.TryRemove(key) |> ignore)
         checkCache.Clear(); // clear all typecheck cache
         // restore all cached typecheck entries above file
         cachedAbove |> Array.iter (fun (key, value) -> checkCache.TryAdd(key, value) |> ignore)
@@ -399,7 +399,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         let fileNames = [| fileName |]
         let parsingOptions = FSharpParsingOptions.FromTcConfig(tcConfig, fileNames, false)
         let parseResults = x.ParseFile (fileName, source, parsingOptions)
-        let moduleNamesDict = Map.Empty
+        let moduleNamesDict = Map.empty
         let loadClosure = None
         let backgroundErrors = [||]
         let checkAlive () = true
