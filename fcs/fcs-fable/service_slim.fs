@@ -29,6 +29,7 @@ open Microsoft.FSharp.Compiler.AbstractIL.Internal.Library
 open Microsoft.FSharp.Compiler.AccessibilityLogic
 open Microsoft.FSharp.Compiler.Ast
 open Microsoft.FSharp.Compiler.CompileOps
+open Microsoft.FSharp.Compiler.CompileOptions
 open Microsoft.FSharp.Compiler.ErrorLogger
 open Microsoft.FSharp.Compiler.Lib
 open Microsoft.FSharp.Compiler.ReferenceResolver
@@ -54,17 +55,10 @@ open Microsoft.FSharp.Compiler.TypeChecker
 type internal TcResult = TcEnv * TopAttribs * TypedImplFile option * ModuleOrNamespaceType
 type internal TcErrors = FSharpErrorInfo[]
 
-type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState, ctok, reactorOps, parseCache, checkCache) =
+type InteractiveChecker private (tcConfig, tcGlobals, tcImports, tcInitialState, ctok, reactorOps, parseCache, checkCache) =
     let userOpName = "Unknown"
 
-    static member Create(references: string[], readAllBytes: string -> byte[], defines: string[], optimize: bool) =
-
-        let GetSignatureData ((fileName:string), ilScopeRef, (ilModule:ILModuleDef option), (bytes:byte[])) = 
-            TastPickle.unpickleObjWithDanglingCcus fileName ilScopeRef ilModule TastPickle.unpickleCcuInfo bytes
-        let GetOptimizationData ((fileName:string), ilScopeRef, (ilModule:ILModuleDef option), (bytes:byte[])) = 
-            TastPickle.unpickleObjWithDanglingCcus fileName ilScopeRef ilModule Optimizer.u_CcuOptimizationInfo bytes
-
-        let tcConfig = TcConfig (optimize, defines = Array.toList defines)
+    static member private BuildTcImports (tcConfig: TcConfig, references: string[], readAllBytes: string -> byte[]) =
         let tcImports = TcImports ()
         let ilGlobals = IL.EcmaMscorlibILGlobals
 
@@ -96,6 +90,12 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
             let reader = ILBinaryReader.OpenILModuleReaderFromBytes fileName bytes opts
             reader.ILModuleDef //reader.ILAssemblyRefs
 
+        let GetSignatureData (fileName:string, ilScopeRef, ilModule:ILModuleDef option, bytes:byte[]) = 
+            TastPickle.unpickleObjWithDanglingCcus fileName ilScopeRef ilModule TastPickle.unpickleCcuInfo bytes
+
+        let GetOptimizationData (fileName:string, ilScopeRef, ilModule:ILModuleDef option, bytes:byte[]) = 
+            TastPickle.unpickleObjWithDanglingCcus fileName ilScopeRef ilModule Optimizer.u_CcuOptimizationInfo bytes
+
         let memoize_mod = new MemoizationTable<_,_> (LoadMod, keyComparer=HashIdentity.Structural)
 
         let LoadSigData ccuName =
@@ -119,7 +119,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         let memoize_sig = new MemoizationTable<_,_> (LoadSigData, keyComparer=HashIdentity.Structural)
         let memoize_opt = new MemoizationTable<_,_> (LoadOptData, keyComparer=HashIdentity.Structural)
 
-        let GetCustomAttributesOfIlModule (ilModule:ILModuleDef) = 
+        let GetCustomAttributesOfIlModule (ilModule: ILModuleDef) = 
             (match ilModule.Manifest with Some m -> m.CustomAttrs | None -> ilModule.CustomAttrs).AsList 
 
         let GetAutoOpenAttributes ilg ilModule = 
@@ -132,7 +132,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
             let attrs = GetCustomAttributesOfIlModule ilModule
             List.exists IsSignatureDataVersionAttr attrs
 
-        let mkCcuInfo ilg ilScopeRef ilModule ccu =
+        let mkCcuInfo ilg ilScopeRef ilModule ccu : ImportedAssembly =
               { ILScopeRef = ilScopeRef
                 FSharpViewOfMetadata = ccu
                 AssemblyAutoOpenAttributes = GetAutoOpenAttributes ilg ilModule
@@ -216,7 +216,7 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
             let refCcus = refCcusUnfixed |> List.map fst
             let findCcuInfo name =
                 refCcus
-                |> List.tryFind (fun x -> x.FSharpViewOfMetadata.AssemblyName = name)
+                |> List.tryFind (fun (x: ImportedAssembly) -> x.FSharpViewOfMetadata.AssemblyName = name)
                 |> Option.map (fun x -> x.FSharpViewOfMetadata)
             let fixup (data: TastPickle.PickledDataWithReferences<_>) =
                 data.OptionalFixup findCcuInfo |> ignore
@@ -270,17 +270,56 @@ type InteractiveChecker internal (tcConfig, tcGlobals, tcImports, tcInitialState
         // do this prior to parsing, since parsing IL assembly code may refer to mscorlib
         do tcImports.SetCcuMap(ccuMap)
         do tcImports.SetTcGlobals(tcGlobals)
+        tcImports, tcGlobals
 
-        let niceNameGen = NiceNameGenerator()
-        let amap = tcImports.GetImportMap()
-        let rng = rangeN Lexhelp.stdinMockFilename 0
+    static member Create(references: string[], readAllBytes: string -> byte[], defines: string[], optimize: bool) =
+        let dllName (fileName: string) =
+            if fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+            then fileName
+            else fileName + ".dll"
+        let argv = [|
+            for d in defines do yield "-d:" + d
+            for r in references do yield "-r:" + (dllName r)
+            yield "--optimize" + (if optimize then "+" else "-")
+        |]
+        let options: FSharpProjectOptions =
+          { ProjectFileName = "Project"
+            ProjectId = None
+            SourceFiles = [| |]
+            OtherOptions = argv
+            ReferencedProjects = [| |]
+            IsIncompleteTypeCheckEnvironment = false
+            UseScriptResolutionRules = false
+            LoadTime = System.DateTime.MaxValue
+            UnresolvedReferences = None
+            OriginalLoadReferences = []
+            ExtraProjectInfo = None
+            Stamp = None }
+
+        InteractiveChecker.Create(readAllBytes, options)
+
+    static member Create(readAllBytes: string -> byte[], options: FSharpProjectOptions) =
+        let references =
+            options.OtherOptions
+            |> Array.filter (fun s -> s.StartsWith("-r:"))
+            |> Array.map (fun s -> s.Replace("-r:", ""))
+
+        let tcConfig =
+            let tcConfigB = TcConfigBuilder.Initial
+            let sourceFiles = options.SourceFiles |> Array.toList
+            let argv = options.OtherOptions |> Array.toList
+            let _sourceFiles = ApplyCommandLineArgs(tcConfigB, sourceFiles, argv)
+            TcConfig.Create(tcConfigB, validate=false)
+
+        let tcImports, tcGlobals =
+            InteractiveChecker.BuildTcImports (tcConfig, references, readAllBytes)
 
         let assemblyName = "Project"
-        let ccus = ccuInfos |> List.map (fun x -> x.FSharpViewOfMetadata, x.AssemblyAutoOpenAttributes, x.AssemblyInternalsVisibleToAttributes)
-        let tcInitialEnv = CreateInitialTcEnv (tcGlobals, amap, rng, assemblyName, ccus)
+        let niceNameGen = NiceNameGenerator()
+        let tcInitialEnv = GetInitialTcEnv (assemblyName, rangeStartup, tcConfig, tcImports, tcGlobals)
         let tcInitialState = GetInitialTcState (rangeStartup, assemblyName, tcConfig, tcGlobals, tcImports, niceNameGen, tcInitialEnv)
-        let ctok = CompilationThreadToken()
 
+        let ctok = CompilationThreadToken()
         let reactorOps = 
             { new IReactorOperations with
                 member __.EnqueueAndAwaitOpAsync (userOpName, opName, opArg, op) =
