@@ -918,7 +918,7 @@ let mkCacheInt32 lowMem _inbase _nm _sz  =
             | null -> cache :=  new Dictionary<int32, _>(11)
             | _ -> ()
             !cache
-#if FABLE_COMPILER
+#if FABLE_COMPILER_NO_BYREF
         let ok, res = cache.TryGetValue(idx)
 #else
         let mutable res = Unchecked.defaultof<_>
@@ -1161,7 +1161,7 @@ type ILMetadataReader =
     securityDeclsReader_Assembly : ILSecurityDeclsStored
     typeDefReader : ILTypeDefStored }
    
-#if FABLE_COMPILER // no byref parameters
+#if FABLE_COMPILER_NO_BYREF
 
 type byref<'T> = ref<'T>
 let inline (~&) (x: ref<'T>) = x

@@ -75,7 +75,7 @@ type Table<'T> =
         tbl.rows.Add(x)
         n
     member tbl.FindOrAdd x = 
-#if FABLE_COMPILER
+#if FABLE_COMPILER_NO_BYREF
         let ok, res = tbl.tbl.TryGetValue(x)
 #else
         let mutable res = Unchecked.defaultof<_>

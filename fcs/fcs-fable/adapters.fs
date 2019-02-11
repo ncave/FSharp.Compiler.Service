@@ -19,6 +19,15 @@ module System =
         type AssemblyName(assemblyName: string) =
             member x.Name = assemblyName //TODO: proper implementation
 
+    module Threading =
+        type CancellationToken(canceled: bool) =
+            new () = CancellationToken(false)
+            static member None = CancellationToken(false)
+            member x.IsCancellationRequested = canceled
+
+    type OperationCanceledException(ct: Threading.CancellationToken) =
+        inherit System.Exception()
+
     type WeakReference<'T>(v: 'T) =
         member x.TryGetTarget () = (true, v)
 

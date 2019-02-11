@@ -43,7 +43,7 @@ type LightSyntaxStatus(initial:bool,warn:bool) =
 type LexResourceManager() =
     let strings = new System.Collections.Generic.Dictionary<string, Parser.token>(1024)
     member x.InternIdentifierToken(s) = 
-#if FABLE_COMPILER
+#if FABLE_COMPILER_NO_BYREF
         let ok, res = strings.TryGetValue(s)
 #else
         let mutable res = Unchecked.defaultof<_> 

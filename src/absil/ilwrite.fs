@@ -458,7 +458,7 @@ type MetadataTable<'T> =
 #if DEBUG
         tbl.lookups <- tbl.lookups + 1 
 #endif
-#if FABLE_COMPILER
+#if FABLE_COMPILER_NO_BYREF
         let ok, res = tbl.dict.TryGetValue(x)
 #else
         let mutable res = Unchecked.defaultof<_>
@@ -767,7 +767,7 @@ let rec GetTypeRefAsTypeRefRow cenv (tref:ILTypeRef) =
     SharedRow [| ResolutionScope (rs1, rs2); nelem; nselem |]
 
 and GetTypeRefAsTypeRefIdx cenv tref = 
-#if FABLE_COMPILER
+#if FABLE_COMPILER_NO_BYREF
     let ok, res = cenv.trefCache.TryGetValue(tref)
 #else
     let mutable res = 0
