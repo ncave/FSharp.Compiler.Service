@@ -514,8 +514,12 @@ let GetInfoForLocalValue cenv env (v:Val) m =
     (* Abstract slots do not have values *)
     if v.IsDispatchSlot then UnknownValInfo 
     else
+#if FABLE_COMPILER
+        let ok, res = cenv.localInternalVals.TryGetValue(v.Stamp)
+#else
         let mutable res = Unchecked.defaultof<_> 
         let ok = cenv.localInternalVals.TryGetValue(v.Stamp, &res)
+#endif
         if ok then res else
         match env.localExternalVals.TryFind v.Stamp with 
         | Some vval -> vval

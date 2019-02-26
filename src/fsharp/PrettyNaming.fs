@@ -180,7 +180,7 @@ module public FSharp.Compiler.PrettyNaming
                     | true, x ->
                         sb.Append(x) |> ignore
                     | false, _ ->
-                        sb.Append(c) |> ignore
+                        sb.Append(string c) |> ignore
 
                 /// The compiled (mangled) operator name.
                 let opName = sb.ToString ()
@@ -263,7 +263,7 @@ module public FSharp.Compiler.PrettyNaming
                             // 'opCharName' matched the current position in 'opName'.
                             // Append the corresponding operator character to the StringBuilder
                             // and continue decompiling at the index following this instance of 'opCharName'.
-                            sb.Append opChar |> ignore
+                            sb.Append (string opChar) |> ignore
                             decompile sb (idx + opCharName.Length)
 
                 let opNamePrefixLen = opNamePrefix.Length
@@ -470,7 +470,11 @@ module public FSharp.Compiler.PrettyNaming
         if IsCompilerGeneratedName nm then nm else nm+compilerGeneratedMarker
 
     let GetBasicNameOfPossibleCompilerGeneratedName (name:string) =
+#if FABLE_COMPILER
+            match name.IndexOf(compilerGeneratedMarker) with 
+#else
             match name.IndexOf(compilerGeneratedMarker, StringComparison.Ordinal) with 
+#endif
             | -1 | 0 -> name
             | n -> name.[0..n-1]
 

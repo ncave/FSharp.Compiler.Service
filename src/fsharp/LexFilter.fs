@@ -569,7 +569,11 @@ type LexFilterImpl (lightSyntaxStatus:LightSyntaxStatus, compilingFsLib, lexer, 
     // Fetch a raw token, either from the old lexer or from our delayedStack
     //--------------------------------------------------------------------------
 
+#if FABLE_COMPILER
+    let delayedStack = Internal.Utilities.Text.Parsing.Stack<TokenTup>(100)
+#else
     let delayedStack = System.Collections.Generic.Stack<TokenTup>()
+#endif
     let mutable tokensThatNeedNoProcessingCount = 0
 
     let delayToken tokenTup = delayedStack.Push tokenTup 
@@ -2206,8 +2210,12 @@ type LexFilterImpl (lightSyntaxStatus:LightSyntaxStatus, compilingFsLib, lexer, 
                   | NATIVEINT(v)         -> delayMergedToken(NATIVEINT(if plus then v else -v))
                   | IEEE32(v)            -> delayMergedToken(IEEE32(if plus then v else -v))
                   | IEEE64(v)            -> delayMergedToken(IEEE64(if plus then v else -v))
+#if FABLE_COMPILER
+                  | DECIMAL(v)           -> delayMergedToken(DECIMAL(if plus then v else -v))
+#else
                   | DECIMAL(v)           -> delayMergedToken(DECIMAL(if plus then v else System.Decimal.op_UnaryNegation v))
-                  | BIGNUM(v,s)          -> delayMergedToken(BIGNUM((if plus then v else "-"^v),s))
+#endif
+                  | BIGNUM(v,s)          -> delayMergedToken(BIGNUM((if plus then v else "-"+v),s))
                   | _ -> noMerge()
               else
                   noMerge()
@@ -2252,7 +2260,11 @@ type LexFilter (lightSyntaxStatus:LightSyntaxStatus, compilingFsLib, lexer, lexb
 
     // We don't interact with lexbuf state at all, any inserted tokens have same state/location as the real one read, so
     // we don't have to do any of the wrapped lexbuf magic that you see in LexFilterImpl.
+#if FABLE_COMPILER
+    let delayedStack = Internal.Utilities.Text.Parsing.Stack<token>(100)
+#else
     let delayedStack = System.Collections.Generic.Stack<token>()
+#endif
     let delayToken tok = delayedStack.Push tok 
 
     let popNextToken() = 

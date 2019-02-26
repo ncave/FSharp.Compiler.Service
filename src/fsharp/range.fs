@@ -163,7 +163,11 @@ type FileIndexTable() =
             idx
             
         | _ -> 
+#if FABLE_COMPILER
+            (
+#else
             lock fileToIndexTable (fun () -> 
+#endif
                 // Get the new index
                 let idx = indexToFileTable.Count
                 
@@ -352,8 +356,11 @@ module Line =
 
     // Visual Studio uses line counts starting at 0, F# uses them starting at 1 
     let fromZ (line:Line0) = int line+1
-
+#if FABLE_COMPILER
+    let toZ (line:int) : Line0 = int (line - 1)
+#else
     let toZ (line:int) : Line0 = LanguagePrimitives.Int32WithMeasure(line - 1)
+#endif
 
 module Pos =
 

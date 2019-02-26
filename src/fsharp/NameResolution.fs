@@ -1582,8 +1582,17 @@ type TcResultsSinkImpl(g, ?source: string) =
             // for the same identifier at the same location.
             if allowedRange m then
                 if replace then 
+#if FABLE_COMPILER // RemoveAll not supported
+                    let r1 = capturedNameResolutions.FindAll(fun cnr -> cnr.Range <> m)
+                    let r2 = capturedMethodGroupResolutions.FindAll(fun cnr -> cnr.Range <> m)
+                    capturedNameResolutions.Clear()
+                    capturedMethodGroupResolutions.Clear()
+                    capturedNameResolutions.AddRange(r1)
+                    capturedMethodGroupResolutions.AddRange(r2)
+#else
                     capturedNameResolutions.RemoveAll(fun cnr -> cnr.Range = m) |> ignore
                     capturedMethodGroupResolutions.RemoveAll(fun cnr -> cnr.Range = m) |> ignore
+#endif
                 else
                     let alreadyDone =
                         match item with

@@ -87,6 +87,10 @@ Target "BuildVersion" (fun _ ->
     Shell.Exec("appveyor", sprintf "UpdateBuild -Version \"%s\"" buildVersion) |> ignore
 )
 
+Target "BuildTools" (fun _ ->
+    runDotnet __SOURCE_DIRECTORY__ "build ../src/buildtools/buildtools.proj -v n -c Proto"
+)
+
 Target "Build" (fun _ ->
     runDotnet __SOURCE_DIRECTORY__ "build ../src/buildtools/buildtools.proj -v n -c Proto"
     runDotnet __SOURCE_DIRECTORY__ "build FSharp.Compiler.Service.sln -v n -c release"
@@ -103,6 +107,25 @@ Target "Test" (fun _ ->
 
 Target "NuGet" (fun _ ->
     runDotnet __SOURCE_DIRECTORY__ "pack FSharp.Compiler.Service.sln -v n -c release"
+)
+
+Target "CodeGen.Fable" (fun _ ->
+    let outDir = __SOURCE_DIRECTORY__ + "/fcs-fable/codegen/"
+
+    // run FCS codegen (except that fssrgen runs without .resx output to inline it)
+    runDotnet outDir "run -- ../../../src/fsharp/FSComp.txt FSComp.fs"
+    runDotnet outDir "run -- ../../../src/fsharp/fsi/FSIstrings.txt FSIstrings.fs"
+
+    // Fable-specific (comment the #line directive as it is not supported)
+    ["lex.fs"; "pplex.fs"; "illex.fs"; "ilpars.fs"; "pars.fs"; "pppars.fs"]
+    |> Seq.map (fun fileName -> outDir + fileName)
+    |> RegexReplaceInFilesWithEncoding @"(?<!/)# (?=\d)" "//# " Text.Encoding.UTF8
+
+    // prevent stack overflows on large files (make lexer rules inline)
+    let pattern = @"(?<=and )(?!inline )([a-zA-Z]+ )+ *\(lexbuf "
+    ["lex.fs"; "pplex.fs"; "illex.fs"]
+    |> Seq.map (fun fileName -> outDir + fileName)
+    |> RegexReplaceInFilesWithEncoding pattern @"inline $0" Text.Encoding.UTF8
 )
 
 Target "GenerateDocsEn" (fun _ ->
@@ -131,6 +154,10 @@ Target "Start" DoNothing
 Target "Release" DoNothing
 Target "GenerateDocs" DoNothing
 Target "TestAndNuGet" DoNothing
+
+"Clean"
+  ==> "BuildTools"
+  ==> "CodeGen.Fable"
 
 "Start"
   =?> ("BuildVersion", isAppVeyorBuild)
