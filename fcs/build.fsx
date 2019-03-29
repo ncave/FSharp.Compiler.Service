@@ -87,6 +87,10 @@ Target "BuildVersion" (fun _ ->
     Shell.Exec("appveyor", sprintf "UpdateBuild -Version \"%s\"" buildVersion) |> ignore
 )
 
+Target "BuildTools" (fun _ ->
+    runDotnet __SOURCE_DIRECTORY__ "build ../src/buildtools/buildtools.proj -v n -c Proto"
+)
+
 Target "Build" (fun _ ->
     runDotnet __SOURCE_DIRECTORY__ "build ../src/buildtools/buildtools.proj -v n -c Proto"
     let fslexPath = __SOURCE_DIRECTORY__ + "/../artifacts/bin/fslex/Proto/netcoreapp2.0/fslex.dll"
@@ -124,6 +128,17 @@ Target "PublishNuGet" (fun _ ->
         { p with
             ApiKey = apikey
             WorkingDir = releaseDir })
+)
+
+// --------------------------------------------------------------------------------------
+// Export Metadata binaries
+
+Target "Export.Metadata" (fun _ ->
+    let projPath =
+        match environVarOrNone "FCS_EXPORT_PROJECT" with
+        | Some x -> x
+        | None -> __SOURCE_DIRECTORY__ + "/fcs-export"
+    runDotnet projPath "run -c Release"
 )
 
 // --------------------------------------------------------------------------------------
@@ -166,5 +181,9 @@ Target "TestAndNuGet" DoNothing
 
 "GenerateDocs"
   ==> "Release"
+
+"Clean"
+  ==> "BuildTools"
+  ==> "Export.Metadata"
 
 RunTargetOrDefault "Build"

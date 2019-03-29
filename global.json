@@ -1,6 +1,6 @@
 {
   "tools": {
-    "dotnet": "2.1.504",
+    "dotnet": "2.2.105",
     "vs": {
       "version": "15.9",
       "components": [
